@@ -53,7 +53,8 @@
 
     function renderSwimmers() {
       const gender = document.getElementById('filterGroup').value;
-      let swimmers = allSwimmers;
+      // 公开页面只显示活跃运动员（已停用的不显示在队列表中）
+      let swimmers = allSwimmers.filter(s => s.status !== 'inactive');
       if (gender) swimmers = swimmers.filter(s => s.gender === gender);
 
       const container = document.getElementById('swimmerList');
