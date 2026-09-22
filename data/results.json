@@ -125,12 +125,15 @@
     "eventId": "E014",
     "meetId": "M001",
     "timeMs": 31500,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T09:46:57Z",
     "createdBy": "admin",
-    "updatedAt": null,
-    "updatedBy": null,
-    "updateReason": null
+    "updatedAt": "2026-09-22T10:27:39Z",
+    "updatedBy": "admin",
+    "updateReason": "清理端到端测试数据",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "RCHJ324P6",
