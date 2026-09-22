@@ -1,0 +1,37 @@
+[
+  {
+    "id": "S001",
+    "name": "张三",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active"
+  },
+  {
+    "id": "S002",
+    "name": "李四",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active"
+  },
+  {
+    "id": "S003",
+    "name": "王五",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active"
+  },
+  {
+    "id": "S004",
+    "name": "赵六",
+    "gender": "female",
+    "group": "女子组",
+    "status": "active"
+  },
+  {
+    "id": "S005",
+    "name": "孙七",
+    "gender": "female",
+    "group": "女子组",
+    "status": "active"
+  }
+]

@@ -1,0 +1,119 @@
+[
+  {
+    "id": "E001",
+    "name": "50米自由泳",
+    "distance": 50,
+    "stroke": "freestyle",
+    "gender": "male",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E002",
+    "name": "100米自由泳",
+    "distance": 100,
+    "stroke": "freestyle",
+    "gender": "male",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E003",
+    "name": "200米自由泳",
+    "distance": 200,
+    "stroke": "freestyle",
+    "gender": "male",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E004",
+    "name": "100米蛙泳",
+    "distance": 100,
+    "stroke": "breaststroke",
+    "gender": "male",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E005",
+    "name": "200米蛙泳",
+    "distance": 200,
+    "stroke": "breaststroke",
+    "gender": "male",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E006",
+    "name": "100米仰泳",
+    "distance": 100,
+    "stroke": "backstroke",
+    "gender": "male",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E007",
+    "name": "100米蝶泳",
+    "distance": 100,
+    "stroke": "butterfly",
+    "gender": "male",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E008",
+    "name": "200米混合泳",
+    "distance": 200,
+    "stroke": "medley",
+    "gender": "male",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E009",
+    "name": "50米自由泳",
+    "distance": 50,
+    "stroke": "freestyle",
+    "gender": "female",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E010",
+    "name": "100米自由泳",
+    "distance": 100,
+    "stroke": "freestyle",
+    "gender": "female",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E011",
+    "name": "100米蛙泳",
+    "distance": 100,
+    "stroke": "breaststroke",
+    "gender": "female",
+    "type": "individual",
+    "status": "active"
+  },
+  {
+    "id": "E012",
+    "name": "4×50米自由泳接力",
+    "distance": 200,
+    "stroke": "freestyle",
+    "gender": "male",
+    "type": "relay",
+    "status": "active"
+  },
+  {
+    "id": "E013",
+    "name": "4×50米混合泳接力",
+    "distance": 200,
+    "stroke": "medley",
+    "gender": "male",
+    "type": "relay",
+    "status": "active"
+  }
+]

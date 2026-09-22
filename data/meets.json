@@ -1,0 +1,23 @@
+[
+  {
+    "id": "M001",
+    "name": "2026年校运会",
+    "date": "2026-10-01",
+    "location": "上海大学",
+    "status": "active"
+  },
+  {
+    "id": "M002",
+    "name": "2026年学院杯",
+    "date": "2026-04-15",
+    "location": "上海大学",
+    "status": "active"
+  },
+  {
+    "id": "M003",
+    "name": "2025梦想杯",
+    "date": "2025-10-19",
+    "location": "上海大学",
+    "status": "completed"
+  }
+]

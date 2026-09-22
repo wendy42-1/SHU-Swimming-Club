@@ -1,0 +1,122 @@
+[
+  {
+    "id": "R001",
+    "swimmerId": "S001",
+    "eventId": "E002",
+    "meetId": "M001",
+    "timeMs": 58320,
+    "status": "official",
+    "createdAt": "2026-09-22T08:00:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R002",
+    "swimmerId": "S002",
+    "eventId": "E002",
+    "meetId": "M001",
+    "timeMs": 59010,
+    "status": "official",
+    "createdAt": "2026-09-22T08:05:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R003",
+    "swimmerId": "S003",
+    "eventId": "E002",
+    "meetId": "M001",
+    "timeMs": 59460,
+    "status": "official",
+    "createdAt": "2026-09-22T08:10:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R004",
+    "swimmerId": "S001",
+    "eventId": "E001",
+    "meetId": "M001",
+    "timeMs": 27850,
+    "status": "official",
+    "createdAt": "2026-09-22T08:15:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R005",
+    "swimmerId": "S002",
+    "eventId": "E001",
+    "meetId": "M001",
+    "timeMs": 28120,
+    "status": "official",
+    "createdAt": "2026-09-22T08:20:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R006",
+    "swimmerId": "S004",
+    "eventId": "E009",
+    "meetId": "M001",
+    "timeMs": 30540,
+    "status": "official",
+    "createdAt": "2026-09-22T08:25:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R007",
+    "swimmerId": "S005",
+    "eventId": "E009",
+    "meetId": "M001",
+    "timeMs": 31200,
+    "status": "official",
+    "createdAt": "2026-09-22T08:30:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R008",
+    "swimmerId": "S004",
+    "eventId": "E010",
+    "meetId": "M001",
+    "timeMs": 65430,
+    "status": "official",
+    "createdAt": "2026-09-22T08:35:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R009",
+    "swimmerId": "S001",
+    "eventId": "E004",
+    "meetId": "M002",
+    "timeMs": 72100,
+    "status": "official",
+    "createdAt": "2026-04-15T09:00:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R010",
+    "swimmerId": "S002",
+    "eventId": "E004",
+    "meetId": "M002",
+    "timeMs": 73500,
+    "status": "official",
+    "createdAt": "2026-04-15T09:05:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R011",
+    "swimmerId": "S003",
+    "eventId": "E003",
+    "meetId": "M002",
+    "timeMs": 125430,
+    "status": "official",
+    "createdAt": "2026-04-15T09:10:00Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "R012",
+    "swimmerId": "S001",
+    "eventId": "E003",
+    "meetId": "M002",
+    "timeMs": 122870,
+    "status": "official",
+    "createdAt": "2026-04-15T09:15:00Z",
+    "createdBy": "admin"
+  }
+]
