@@ -4,7 +4,30 @@
  * 负责：角色管理、导航栏渲染、通用工具
  */
 
-import { getCurrentRole, setCurrentRole, getRoleDisplayName, isAdmin, ROLES } from '../src/services/authService.js';
+import { getCurrentRole, setCurrentRole, getRoleDisplayName, isAdmin, hasPermission, ROLES } from '../src/services/authService.js';
+
+/** 品牌名称 */
+const BRAND_NAME = '鼠智赛事通';
+
+/** 应用名称（含副标题） */
+const APP_TITLE = '鼠智赛事通 · 上海大学游泳队';
+
+/**
+ * 判断当前页面是否在 pages/ 子目录下
+ * 用于正确生成导航链接的相对路径
+ */
+function isSubPage() {
+  return window.location.pathname.includes('/pages/');
+}
+
+/**
+ * 获取相对于根目录的路径前缀
+ * - 根目录页面: './'
+ * - pages/ 子页面: '../'
+ */
+function pathPrefix() {
+  return isSubPage() ? '../' : './';
+}
 
 /**
  * 初始化页面：设置角色、渲染导航栏
@@ -13,6 +36,16 @@ export function initPage() {
   const role = getCurrentRole();
   document.body.setAttribute('data-role', role);
   renderNavbar(role);
+  updatePageTitle();
+}
+
+/**
+ * 更新页面标题（title 标签）
+ */
+function updatePageTitle() {
+  if (document.title && !document.title.includes(BRAND_NAME)) {
+    document.title = document.title.replace('游泳成绩管理系统', BRAND_NAME);
+  }
 }
 
 /**
@@ -23,19 +56,29 @@ function renderNavbar(role) {
   const navbar = document.getElementById('navbar');
   if (!navbar) return;
 
+  const prefix = pathPrefix();
+
   const pages = [
-    { href: 'index.html', label: '首页', always: true },
-    { href: 'pages/results.html', label: '成绩', always: true },
-    { href: 'pages/swimmers.html', label: '运动员', always: true },
-    { href: 'pages/meets.html', label: '比赛', always: true },
-    { href: 'pages/events.html', label: '项目', always: true },
-    { href: 'pages/ranking.html', label: '排名', always: true },
-    { href: 'pages/admin.html', label: '管理', adminOnly: true },
+    { href: `${prefix}index.html`, label: '首页', always: true },
+    { href: `${prefix}pages/results.html`, label: '成绩', always: true },
+    { href: `${prefix}pages/swimmers.html`, label: '运动员', always: true },
+    { href: `${prefix}pages/meets.html`, label: '比赛', always: true },
+    { href: `${prefix}pages/events.html`, label: '项目', always: true },
+    { href: `${prefix}pages/ranking.html`, label: '排名', always: true },
+    { href: `${prefix}pages/admin.html`, label: '管理', adminOnly: true },
   ];
 
+  // 子页面路径修正
   const navItems = pages
     .filter(p => p.always || (p.adminOnly && isAdmin()))
-    .map(p => `<a href="${p.href}">${p.label}</a>`)
+    .map(p => {
+      // 如果是子页面，pages/ 路径不需要再加 prefix 前缀的 pages/
+      let href = p.href;
+      if (isSubPage() && p.href.includes('pages/')) {
+        href = `${prefix}${p.href.replace(`${prefix}pages/`, '')}`;
+      }
+      return `<a href="${href}">${p.label}</a>`;
+    })
     .join('');
 
   const roleOptions = Object.values(ROLES)
@@ -43,11 +86,12 @@ function renderNavbar(role) {
     .join('');
 
   navbar.innerHTML = `
-    <a href="../index.html" class="navbar-brand">游泳成绩系统</a>
+    <a href="${prefix}index.html" class="navbar-brand">${BRAND_NAME}</a>
     <nav class="navbar-nav">
       ${navItems}
     </nav>
     <div class="role-switcher">
+      <span class="role-label">身份</span>
       <select id="roleSelect" aria-label="切换角色">
         ${roleOptions}
       </select>
@@ -141,4 +185,12 @@ export function strokeName(stroke) {
  */
 export function genderName(gender) {
   return gender === 'male' ? '男' : gender === 'female' ? '女' : gender;
+}
+
+/**
+ * 获取品牌名称
+ * @returns {string}
+ */
+export function getBrandName() {
+  return BRAND_NAME;
 }

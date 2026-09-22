@@ -559,3 +559,254 @@ body[data-role="SUPER_ADMIN"] .super-admin-only {
 .super-admin-only {
   display: none;
 }
+
+/* === 角色切换器标签 === */
+.role-label {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+}
+
+/* === 管理中心功能卡片 === */
+.admin-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.admin-card {
+  display: block;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px 16px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 2px solid transparent;
+}
+
+.admin-card:active {
+  transform: scale(0.96);
+}
+
+.admin-card:hover {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
+}
+
+.admin-card-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.admin-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.admin-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* === 管理表格 === */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.data-table th {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.data-table tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.data-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.data-table .actions {
+  white-space: nowrap;
+}
+
+.data-table .btn-sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  margin-right: 4px;
+}
+
+/* === 模态框 === */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  max-width: 500px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.modal-close:hover {
+  background: var(--bg);
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* === 搜索框 === */
+.search-box {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  min-height: 44px;
+  background: var(--card-bg);
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.search-box:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+/* === 状态切换按钮 === */
+.status-toggle {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+}
+
+.status-toggle.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-toggle.inactive {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+/* === localStorage 提示 === */
+.local-storage-notice {
+  background: #e7f5ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+  color: #004085;
+}
+
+.local-storage-notice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* === 管理页面区域标题 === */
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--primary-light);
+}
+
+/* === 响应式：管理表格在移动端可横向滚动 === */
+@media (max-width: 640px) {
+  .data-table {
+    font-size: 0.8rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 8px 10px;
+  }
+
+  .admin-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
