@@ -1,0 +1,561 @@
+/* ============================================
+   SHU Swimming Club - 全局样式
+   Mobile First 响应式设计
+   ============================================ */
+
+/* === CSS 变量 === */
+:root {
+  --primary: #0066cc;
+  --primary-dark: #004499;
+  --primary-light: #e6f0ff;
+  --accent: #ff6b35;
+  --bg: #f5f7fa;
+  --card-bg: #ffffff;
+  --text: #1a1a2e;
+  --text-secondary: #666;
+  --border: #e0e0e0;
+  --success: #28a745;
+  --danger: #dc3545;
+  --warning: #ffc107;
+  --radius: 12px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+  --nav-height: 56px;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+}
+
+/* === Reset === */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* === 导航栏 === */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+}
+
+.navbar-brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navbar-nav {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.navbar-nav::-webkit-scrollbar { display: none; }
+
+.navbar-nav a {
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.navbar-nav a:hover,
+.navbar-nav a.active {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+
+/* 角色切换器 */
+.role-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.role-switcher select {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+  background: rgba(255,255,255,0.9);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* === 主容器 === */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: calc(var(--nav-height) + 16px) 16px 32px;
+}
+
+/* === 页面标题 === */
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+.page-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+}
+
+/* === 卡片 === */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.card-clickable {
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.card-clickable:active {
+  transform: scale(0.98);
+}
+
+.card-clickable:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* === 首页导航卡片网格 === */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.home-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px 16px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.home-card:active {
+  transform: scale(0.96);
+}
+
+.home-card:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.home-card-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.home-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.home-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* === 筛选栏 === */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-bar select,
+.filter-bar input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--card-bg);
+  color: var(--text);
+  min-height: 44px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.filter-bar select:focus,
+.filter-bar input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+/* === 成绩列表 === */
+.result-list {
+  list-style: none;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+
+.result-item:last-child {
+  border-bottom: none;
+}
+
+.result-rank {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 32px;
+  text-align: center;
+}
+
+.result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-detail {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-time {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: right;
+}
+
+/* === 表单 === */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.form-group select,
+.form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  min-height: 44px;
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+/* === 按钮 === */
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  min-height: 44px;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* === 消息提示 === */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+.alert-success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.alert-warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.alert-info {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  border: 1px solid #b3d9ff;
+}
+
+/* === 排名表 === */
+.ranking-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.ranking-table th,
+.ranking-table td {
+  padding: 12px 14px;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.ranking-table th {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.ranking-table tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.ranking-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.ranking-table .rank-cell {
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+  width: 48px;
+}
+
+.ranking-table .time-cell {
+  font-weight: 700;
+  color: var(--accent);
+  text-align: right;
+}
+
+/* === 徽章 === */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-male { background: #cce5ff; color: #004085; }
+.badge-female { background: #f8d7da; color: #721c24; }
+.badge-active { background: #d4edda; color: #155724; }
+.badge-inactive { background: #e2e3e5; color: #383d41; }
+.badge-relay { background: #fff3cd; color: #856404; }
+
+/* === 空状态 === */
+.empty-state {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-secondary);
+}
+
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+}
+
+/* === 加载状态 === */
+.loading {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-secondary);
+}
+
+/* === 安全声明 === */
+.security-notice {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+  color: #856404;
+}
+
+.security-notice strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* === 响应式断点 === */
+
+/* 平板 (768px+) */
+@media (min-width: 768px) {
+  .container {
+    padding-top: calc(var(--nav-height) + 24px);
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .page-title {
+    font-size: 1.75rem;
+  }
+
+  .home-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .home-card {
+    padding: 32px 20px;
+  }
+
+  .home-card-icon {
+    font-size: 2.5rem;
+  }
+
+  .navbar-nav a {
+    font-size: 0.95rem;
+    padding: 8px 16px;
+  }
+}
+
+/* 桌面 (1024px+) */
+@media (min-width: 1024px) {
+  .container {
+    max-width: 1100px;
+  }
+
+  .home-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .filter-bar {
+    gap: 12px;
+  }
+}
+
+/* 大屏桌面 (1280px+) */
+@media (min-width: 1280px) {
+  .container {
+    max-width: 1200px;
+  }
+}
+
+/* === 角色相关显示控制 === */
+.admin-only {
+  display: none;
+}
+
+body[data-role="SUPER_ADMIN"] .admin-only,
+body[data-role="SCORE_ADMIN"] .admin-only {
+  display: block;
+}
+
+body[data-role="SUPER_ADMIN"] .super-admin-only {
+  display: block;
+}
+
+.super-admin-only {
+  display: none;
+}

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>成绩查询 - 游泳成绩管理系统</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">成绩查询</h1>
+
+    <div class="filter-bar">
+      <select id="filterMeet">
+        <option value="">全部比赛</option>
+      </select>
+      <select id="filterEvent">
+        <option value="">全部项目</option>
+      </select>
+      <select id="filterSwimmer">
+        <option value="">全部运动员</option>
+      </select>
+      <select id="filterGender">
+        <option value="">全部性别</option>
+        <option value="male">男</option>
+        <option value="female">女</option>
+      </select>
+      <select id="sortBy">
+        <option value="timeAsc">成绩升序（最快）</option>
+        <option value="timeDesc">成绩降序</option>
+        <option value="dateDesc">日期最新</option>
+      </select>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <div class="card">
+      <ul class="result-list" id="resultList">
+        <li class="loading">加载中...</li>
+      </ul>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, formatDate, strokeName, showAlert } from '../assets/js/app.js';
+    import { getAllResults, filterResults } from '../src/services/resultService.js';
+    import { getAllMeets, getMeetNameMap } from '../src/services/meetService.js';
+    import { getAllEvents, getEventNameMap } from '../src/services/eventService.js';
+    import { getAllSwimmers, getSwimmerNameMap } from '../src/services/swimmerService.js';
+    import { formatTime } from '../src/utils/time.js';
+    import { sortResults } from '../src/algorithms/ranking.js';
+
+    initPage();
+
+    let allResults = [];
+    let meetNames = {}, eventNames = {}, swimmerNames = {};
+    let allSwimmers = [];
+
+    async function loadData() {
+      try {
+        const [results, meets, events, swimmers] = await Promise.all([
+          getAllResults(),
+          getAllMeets(),
+          getAllEvents(),
+          getAllSwimmers()
+        ]);
+        allResults = results;
+        allSwimmers = swimmers;
+        meetNames = {};
+        (await getAllMeets()).forEach(m => meetNames[m.id] = m.name);
+        eventNames = {};
+        (await getAllEvents()).forEach(e => eventNames[e.id] = e.name);
+        swimmerNames = {};
+        swimmers.forEach(s => swimmerNames[s.id] = s.name);
+
+        populateFilters(meets, events, swimmers);
+        renderResults();
+      } catch (err) {
+        document.getElementById('resultList').innerHTML =
+          `<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>加载失败: ${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    function populateFilters(meets, events, swimmers) {
+      const meetSel = document.getElementById('filterMeet');
+      meets.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        meetSel.appendChild(opt);
+      });
+
+      const eventSel = document.getElementById('filterEvent');
+      events.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = `${e.name} (${e.gender === 'male' ? '男' : '女'})`;
+        eventSel.appendChild(opt);
+      });
+
+      const swimmerSel = document.getElementById('filterSwimmer');
+      swimmers.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name;
+        swimmerSel.appendChild(opt);
+      });
+    }
+
+    function renderResults() {
+      const filters = {
+        meetId: document.getElementById('filterMeet').value || null,
+        eventId: document.getElementById('filterEvent').value || null,
+        swimmerId: document.getElementById('filterSwimmer').value || null,
+        gender: document.getElementById('filterGender').value || null
+      };
+      const sortBy = document.getElementById('sortBy').value;
+
+      let filtered = allResults.filter(r => {
+        if (filters.meetId && r.meetId !== filters.meetId) return false;
+        if (filters.eventId && r.eventId !== filters.eventId) return false;
+        if (filters.swimmerId && r.swimmerId !== filters.swimmerId) return false;
+        if (filters.gender) {
+          const swimmer = allSwimmers.find(s => s.id === r.swimmerId);
+          if (!swimmer || swimmer.gender !== filters.gender) return false;
+        }
+        if (r.status !== 'official') return false;
+        return true;
+      });
+
+      if (sortBy === 'timeAsc') {
+        filtered = sortResults(filtered, true);
+      } else if (sortBy === 'timeDesc') {
+        filtered = sortResults(filtered, false);
+      } else if (sortBy === 'dateDesc') {
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+
+      const list = document.getElementById('resultList');
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏊</div><p>暂无成绩记录</p></div>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(r => {
+        const name = escapeHtml(swimmerNames[r.swimmerId] || r.swimmerId);
+        const event = escapeHtml(eventNames[r.eventId] || r.eventId);
+        const meet = escapeHtml(meetNames[r.meetId] || r.meetId);
+        const time = formatTime(r.timeMs);
+        return `
+          <li class="result-item">
+            <div class="result-info">
+              <div class="result-name">${name}</div>
+              <div class="result-detail">${event} · ${meet} · ${formatDate(r.createdAt)}</div>
+            </div>
+            <div class="result-time">${time}</div>
+          </li>
+        `;
+      }).join('');
+    }
+
+    ['filterMeet', 'filterEvent', 'filterSwimmer', 'filterGender', 'sortBy'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderResults);
+    });
+
+    loadData();
+  </script>
+</body>
+</html>

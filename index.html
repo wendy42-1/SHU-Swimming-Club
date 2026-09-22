@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游泳成绩管理系统 - 上海大学游泳队</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">游泳成绩管理系统</h1>
+    <p class="page-subtitle">上海大学游泳队 · 多人共享成绩查询平台</p>
+
+    <div class="security-notice">
+      <strong>安全声明</strong>
+      当前版本采用 GitHub + JSON + GitHub Pages 的轻量级共享数据方案，不是传统数据库架构。前端角色控制属于演示级权限，不能视为真正安全的生产级身份认证。
+    </div>
+
+    <div class="home-grid">
+      <a href="pages/results.html" class="home-card">
+        <div class="home-card-icon"> stopwatch</div>
+        <div class="home-card-title">成绩查询</div>
+        <div class="home-card-desc">按比赛、运动员、项目筛选</div>
+      </a>
+      <a href="pages/swimmers.html" class="home-card">
+        <div class="home-card-icon"> persons</div>
+        <div class="home-card-title">运动员</div>
+        <div class="home-card-desc">查看运动员信息与历史成绩</div>
+      </a>
+      <a href="pages/meets.html" class="home-card">
+        <div class="home-card-icon"> 📅</div>
+        <div class="home-card-title">比赛</div>
+        <div class="home-card-desc">查看比赛信息与成绩</div>
+      </a>
+      <a href="pages/events.html" class="home-card">
+        <div class="home-card-icon"> 🏊</div>
+        <div class="home-card-title">项目</div>
+        <div class="home-card-desc">游泳项目配置与查询</div>
+      </a>
+      <a href="pages/ranking.html" class="home-card">
+        <div class="home-card-icon"> trophy</div>
+        <div class="home-card-title">排名</div>
+        <div class="home-card-desc">动态排名与并列处理</div>
+      </a>
+      <a href="pages/admin.html" class="home-card admin-only">
+        <div class="home-card-icon"> settings</div>
+        <div class="home-card-title">管理员</div>
+        <div class="home-card-desc">成绩录入与管理</div>
+      </a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage } from './assets/js/app.js';
+    initPage();
+  </script>
+</body>
+</html>
