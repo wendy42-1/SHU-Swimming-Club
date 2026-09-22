@@ -170,12 +170,15 @@
     "eventId": "E016",
     "meetId": "M001",
     "timeMs": 27200,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T09:52:52Z",
     "createdBy": "admin",
-    "updatedAt": null,
-    "updatedBy": null,
-    "updateReason": null
+    "updatedAt": "2026-09-22T10:29:38Z",
+    "updatedBy": "admin",
+    "updateReason": "清理端到端测试数据",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "RCHJN1W0E",
