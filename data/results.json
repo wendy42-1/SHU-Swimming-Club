@@ -5,9 +5,15 @@
     "eventId": "E002",
     "meetId": "M001",
     "timeMs": 58320,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T08:00:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R002",
@@ -15,9 +21,15 @@
     "eventId": "E002",
     "meetId": "M001",
     "timeMs": 59010,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T08:05:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R003",
@@ -25,9 +37,15 @@
     "eventId": "E002",
     "meetId": "M001",
     "timeMs": 59460,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T08:10:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R004",
@@ -35,9 +53,15 @@
     "eventId": "E001",
     "meetId": "M001",
     "timeMs": 27850,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T08:15:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R005",
@@ -45,9 +69,15 @@
     "eventId": "E001",
     "meetId": "M001",
     "timeMs": 28120,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T08:20:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R006",
@@ -55,9 +85,15 @@
     "eventId": "E009",
     "meetId": "M001",
     "timeMs": 30540,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T08:25:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R007",
@@ -65,9 +101,15 @@
     "eventId": "E009",
     "meetId": "M001",
     "timeMs": 31200,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T08:30:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R008",
@@ -75,9 +117,15 @@
     "eventId": "E010",
     "meetId": "M001",
     "timeMs": 65430,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T08:35:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R009",
@@ -85,9 +133,15 @@
     "eventId": "E004",
     "meetId": "M002",
     "timeMs": 72100,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-04-15T09:00:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R010",
@@ -95,9 +149,15 @@
     "eventId": "E004",
     "meetId": "M002",
     "timeMs": 73500,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-04-15T09:05:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R011",
@@ -105,9 +165,15 @@
     "eventId": "E003",
     "meetId": "M002",
     "timeMs": 125430,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-04-15T09:10:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "R012",
@@ -115,8 +181,14 @@
     "eventId": "E003",
     "meetId": "M002",
     "timeMs": 122870,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-04-15T09:15:00Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T14:16:59Z",
+    "updatedBy": "admin",
+    "updateReason": "成绩删除",
+    "previousValues": {
+      "status": "official"
+    }
   }
 ]
