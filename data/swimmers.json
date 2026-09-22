@@ -56,5 +56,95 @@
     "status": "active",
     "createdAt": "2026-09-22T12:34:02Z",
     "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW002",
+    "name": "E2E_SYNC_TEST_SW002",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW003",
+    "name": "E2E_SYNC_TEST_SW003",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW004",
+    "name": "E2E_SYNC_TEST_SW004",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW005",
+    "name": "E2E_SYNC_TEST_SW005",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW006",
+    "name": "E2E_SYNC_TEST_SW006",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW007",
+    "name": "E2E_SYNC_TEST_SW007",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW008",
+    "name": "E2E_SYNC_TEST_SW008",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW009",
+    "name": "E2E_SYNC_TEST_SW009",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW010",
+    "name": "E2E_SYNC_TEST_SW010",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
+  },
+  {
+    "id": "E2E_SYNC_TEST_SW011",
+    "name": "E2E_SYNC_TEST_SW011",
+    "gender": "male",
+    "group": "男子组",
+    "status": "active",
+    "createdAt": "2026-09-22T12:35:12Z",
+    "createdBy": "admin"
   }
 ]
