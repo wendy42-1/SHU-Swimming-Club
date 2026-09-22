@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>排名 - 游泳成绩管理系统</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">排名</h1>
+
+    <div class="filter-bar">
+      <select id="rankEvent">
+        <option value="">请选择项目</option>
+      </select>
+      <select id="rankMeet">
+        <option value="">全部比赛</option>
+      </select>
+    </div>
+
+    <div id="rankingContainer">
+      <div class="loading">请选择项目查看排名</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, strokeName, genderName } from '../assets/js/app.js';
+    import { getAllResults } from '../src/services/resultService.js';
+    import { getAllEvents } from '../src/services/eventService.js';
+    import { getAllMeets } from '../src/services/meetService.js';
+    import { getAllSwimmers } from '../src/services/swimmerService.js';
+    import { formatTime } from '../src/utils/time.js';
+    import { filterAndRank } from '../src/algorithms/ranking.js';
+
+    initPage();
+
+    let allResults = [], allSwimmers = [];
+    let eventNames = {}, swimmerNames = {};
+
+    async function loadData() {
+      try {
+        const [results, events, meets, swimmers] = await Promise.all([
+          getAllResults(),
+          getAllEvents(),
+          getAllMeets(),
+          getAllSwimmers()
+        ]);
+        allResults = results;
+        allSwimmers = swimmers;
+        eventNames = {};
+        events.forEach(e => eventNames[e.id] = e.name);
+        swimmerNames = {};
+        swimmers.forEach(s => swimmerNames[s.id] = s.name);
+
+        const eventSel = document.getElementById('rankEvent');
+        events.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          opt.textContent = `${e.name} (${genderName(e.gender)})`;
+          eventSel.appendChild(opt);
+        });
+
+        const meetSel = document.getElementById('rankMeet');
+        meets.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name;
+          meetSel.appendChild(opt);
+        });
+      } catch (err) {
+        document.getElementById('rankingContainer').innerHTML =
+          `<div class="empty-state"><p>加载失败: ${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    function renderRanking() {
+      const eventId = document.getElementById('rankEvent').value;
+      const meetId = document.getElementById('rankMeet').value;
+
+      if (!eventId) {
+        document.getElementById('rankingContainer').innerHTML =
+          '<div class="loading">请选择项目查看排名</div>';
+        return;
+      }
+
+      const ranked = filterAndRank(allResults, { eventId, meetId }, { swimmers: allSwimmers });
+
+      const container = document.getElementById('rankingContainer');
+      if (ranked.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏆</div><p>该项目暂无成绩</p></div>';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="card">
+          <table class="ranking-table">
+            <thead>
+              <tr>
+                <th class="rank-cell">名次</th>
+                <th>运动员</th>
+                <th>比赛</th>
+                <th class="time-cell">成绩</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ranked.map(r => `
+                <tr>
+                  <td class="rank-cell">${r.rank}</td>
+                  <td>${escapeHtml(swimmerNames[r.swimmerId] || r.swimmerId)}</td>
+                  <td>${escapeHtml(eventNames[r.eventId] || r.eventId)}</td>
+                  <td class="time-cell">${formatTime(r.timeMs)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    document.getElementById('rankEvent').addEventListener('change', renderRanking);
+    document.getElementById('rankMeet').addEventListener('change', renderRanking);
+
+    loadData();
+  </script>
+</body>
+</html>

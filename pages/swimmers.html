@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运动员 - 游泳成绩管理系统</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">运动员</h1>
+
+    <div class="filter-bar">
+      <select id="filterGroup">
+        <option value="">全部组别</option>
+        <option value="male">男子组</option>
+        <option value="female">女子组</option>
+      </select>
+    </div>
+
+    <div id="swimmerList" class="loading">加载中...</div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, genderName } from '../assets/js/app.js';
+    import { getAllSwimmers } from '../src/services/swimmerService.js';
+    import { getAllResults } from '../src/services/resultService.js';
+    import { formatTime } from '../src/utils/time.js';
+    import { getPersonalBest } from '../src/algorithms/ranking.js';
+
+    initPage();
+
+    let allSwimmers = [], allResults = [];
+
+    async function loadData() {
+      try {
+        [allSwimmers, allResults] = await Promise.all([
+          getAllSwimmers(),
+          getAllResults()
+        ]);
+        renderSwimmers();
+      } catch (err) {
+        document.getElementById('swimmerList').innerHTML =
+          `<div class="empty-state"><p>加载失败: ${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    function renderSwimmers() {
+      const gender = document.getElementById('filterGroup').value;
+      let swimmers = allSwimmers;
+      if (gender) swimmers = swimmers.filter(s => s.gender === gender);
+
+      const container = document.getElementById('swimmerList');
+      if (swimmers.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏊</div><p>暂无运动员</p></div>';
+        return;
+      }
+
+      container.innerHTML = swimmers.map(s => {
+        const results = allResults.filter(r => r.swimmerId === s.id && r.status === 'official');
+        const totalResults = results.length;
+        let bestTime = '--';
+        if (results.length > 0) {
+          const best = results.reduce((min, r) => r.timeMs < min ? r.timeMs : min, results[0].timeMs);
+          bestTime = formatTime(best);
+        }
+        return `
+          <div class="card card-clickable">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div>
+                <div style="font-size:1.1rem;font-weight:700;">${escapeHtml(s.name)}
+                  <span class="badge badge-${s.gender}">${genderName(s.gender)}</span>
+                  ${s.status === 'active' ? '<span class="badge badge-active">活跃</span>' : '<span class="badge badge-inactive"> inactive</span>'}
+                </div>
+                <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px;">
+                  ${escapeHtml(s.group)} · ${totalResults} 项成绩 · 个人最佳: ${bestTime}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('filterGroup').addEventListener('change', renderSwimmers);
+
+    loadData();
+  </script>
+</body>
+</html>

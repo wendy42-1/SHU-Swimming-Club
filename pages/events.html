@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>项目 - 游泳成绩管理系统</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">游泳项目</h1>
+
+    <div class="filter-bar">
+      <select id="filterStroke">
+        <option value="">全部泳姿</option>
+        <option value="freestyle">自由泳</option>
+        <option value="breaststroke">蛙泳</option>
+        <option value="backstroke">仰泳</option>
+        <option value="butterfly">蝶泳</option>
+        <option value="medley">混合泳</option>
+      </select>
+      <select id="filterGender">
+        <option value="">全部性别</option>
+        <option value="male">男</option>
+        <option value="female">女</option>
+      </select>
+      <select id="filterType">
+        <option value="">全部类型</option>
+        <option value="individual">个人</option>
+        <option value="relay">接力</option>
+      </select>
+    </div>
+
+    <div id="eventList" class="loading">加载中...</div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, strokeName, genderName } from '../assets/js/app.js';
+    import { getAllEvents } from '../src/services/eventService.js';
+    import { getAllResults } from '../src/services/resultService.js';
+
+    initPage();
+
+    let allEvents = [], allResults = [];
+
+    async function loadData() {
+      try {
+        [allEvents, allResults] = await Promise.all([
+          getAllEvents(),
+          getAllResults()
+        ]);
+        renderEvents();
+      } catch (err) {
+        document.getElementById('eventList').innerHTML =
+          `<div class="empty-state"><p>加载失败: ${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    function renderEvents() {
+      const stroke = document.getElementById('filterStroke').value;
+      const gender = document.getElementById('filterGender').value;
+      const type = document.getElementById('filterType').value;
+
+      let events = allEvents;
+      if (stroke) events = events.filter(e => e.stroke === stroke);
+      if (gender) events = events.filter(e => e.gender === gender);
+      if (type) events = events.filter(e => e.type === type);
+
+      const container = document.getElementById('eventList');
+      if (events.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏊</div><p>暂无项目</p></div>';
+        return;
+      }
+
+      container.innerHTML = events.map(e => {
+        const count = allResults.filter(r => r.eventId === e.id && r.status === 'official').length;
+        const typeBadge = e.type === 'relay' ? '<span class="badge badge-relay">接力</span>' : '';
+        return `
+          <div class="card card-clickable" onclick="location.href='results.html?event=${escapeHtml(e.id)}'">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:1.1rem;font-weight:700;">
+                  ${escapeHtml(e.name)} ${typeBadge}
+                </div>
+                <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px;">
+                  ${e.distance}米 · ${strokeName(e.stroke)} · ${genderName(e.gender)} · ${count} 项成绩
+                </div>
+              </div>
+              <div style="color:var(--primary);font-size:1.2rem;">›</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    ['filterStroke', 'filterGender', 'filterType'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderEvents);
+    });
+
+    loadData();
+  </script>
+</body>
+</html>

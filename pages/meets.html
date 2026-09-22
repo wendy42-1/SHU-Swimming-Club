@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>比赛 - 游泳成绩管理系统</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">比赛</h1>
+    <div id="meetList" class="loading">加载中...</div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, formatDate } from '../assets/js/app.js';
+    import { getAllMeets } from '../src/services/meetService.js';
+    import { getAllResults } from '../src/services/resultService.js';
+
+    initPage();
+
+    async function loadData() {
+      try {
+        const [meets, results] = await Promise.all([
+          getAllMeets(),
+          getAllResults()
+        ]);
+
+        const container = document.getElementById('meetList');
+        if (meets.length === 0) {
+          container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📅</div><p>暂无比赛</p></div>';
+          return;
+        }
+
+        container.innerHTML = meets.map(m => {
+          const count = results.filter(r => r.meetId === m.id && r.status === 'official').length;
+          const statusBadge = m.status === 'completed'
+            ? '<span class="badge badge-inactive">已结束</span>'
+            : m.status === 'active'
+              ? '<span class="badge badge-active">进行中</span>'
+              : '';
+          return `
+            <div class="card card-clickable" onclick="location.href='results.html?meet=${escapeHtml(m.id)}'">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-size:1.1rem;font-weight:700;">${escapeHtml(m.name)} ${statusBadge}</div>
+                  <div style="font-size:0.85rem;color:var(--text-secondary);margin-top:4px;">
+                    ${formatDate(m.date)} · ${escapeHtml(m.location)} · ${count} 项成绩
+                  </div>
+                </div>
+                <div style="color:var(--primary);font-size:1.2rem;">›</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        document.getElementById('meetList').innerHTML =
+          `<div class="empty-state"><p>加载失败: ${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
