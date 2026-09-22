@@ -39,8 +39,11 @@
     "name": "E2E-Test-03",
     "gender": "female",
     "group": "Women",
-    "status": "active",
+    "status": "inactive",
     "createdAt": "2026-09-22T08:41:09Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-22T08:47:51Z",
+    "updatedBy": "admin",
+    "updateReason": "清理端到端测试数据"
   }
 ]
