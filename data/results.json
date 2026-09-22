@@ -205,11 +205,14 @@
     "eventId": "E019",
     "meetId": "M001",
     "timeMs": 31800,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T09:54:32Z",
     "createdBy": "admin",
-    "updatedAt": null,
-    "updatedBy": null,
-    "updateReason": null
+    "updatedAt": "2026-09-22T10:31:30Z",
+    "updatedBy": "admin",
+    "updateReason": "清理端到端测试数据",
+    "previousValues": {
+      "status": "official"
+    }
   }
 ]
