@@ -1,0 +1,107 @@
+name: Validate Data
+
+on:
+  push:
+    paths:
+      - 'data/**'
+      - '.github/workflows/validate-data.yml'
+  pull_request:
+    paths:
+      - 'data/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: |
+          echo "=== Checking JSON syntax ==="
+          for f in data/*.json; do
+            if ! python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
+              echo "ERROR: $f is not valid JSON"
+              exit 1
+            fi
+            echo "OK: $f is valid JSON"
+          done
+
+      - name: Validate data integrity
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+
+          errors = []
+
+          # Load all data
+          with open('data/swimmers.json') as f:
+              swimmers = json.load(f)
+          with open('data/events.json') as f:
+              events = json.load(f)
+          with open('data/meets.json') as f:
+              meets = json.load(f)
+          with open('data/results.json') as f:
+              results = json.load(f)
+
+          # Build ID sets
+          swimmer_ids = {s['id'] for s in swimmers}
+          event_ids = {e['id'] for e in events}
+          meet_ids = {m['id'] for m in meets}
+
+          # Check for duplicate IDs
+          def check_dupes(arr, name):
+              ids = [item['id'] for item in arr]
+              dupes = set([x for x in ids if ids.count(x) > 1])
+              if dupes:
+                  errors.append(f"Duplicate {name} IDs: {dupes}")
+
+          check_dupes(swimmers, 'swimmer')
+          check_dupes(events, 'event')
+          check_dupes(meets, 'meet')
+          check_dupes(results, 'result')
+
+          # Validate results
+          for r in results:
+              # Check required fields
+              for field in ['id', 'swimmerId', 'eventId', 'meetId', 'timeMs']:
+                  if field not in r:
+                      errors.append(f"Result {r.get('id', '?')}: missing field '{field}'")
+
+              # Check swimmerId exists
+              if r.get('swimmerId') and r['swimmerId'] not in swimmer_ids:
+                  errors.append(f"Result {r['id']}: swimmerId '{r['swimmerId']}' not found in swimmers.json")
+
+              # Check eventId exists
+              if r.get('eventId') and r['eventId'] not in event_ids:
+                  errors.append(f"Result {r['id']}: eventId '{r['eventId']}' not found in events.json")
+
+              # Check meetId exists
+              if r.get('meetId') and r['meetId'] not in meet_ids:
+                  errors.append(f"Result {r['id']}: meetId '{r['meetId']}' not found in meets.json")
+
+              # Check timeMs is non-negative integer
+              t = r.get('timeMs')
+              if not isinstance(t, int) or t < 0:
+                  errors.append(f"Result {r['id']}: timeMs must be a non-negative integer, got {t}")
+
+          # Validate swimmers
+          valid_genders = {'male', 'female'}
+          for s in swimmers:
+              if s.get('gender') and s['gender'] not in valid_genders:
+                  errors.append(f"Swimmer {s['id']}: invalid gender '{s['gender']}'")
+
+          # Report
+          if errors:
+              print("=== VALIDATION FAILED ===")
+              for e in errors:
+                  print(f"  ERROR: {e}")
+              sys.exit(1)
+          else:
+              print("=== VALIDATION PASSED ===")
+              print(f"  Swimmers: {len(swimmers)}")
+              print(f"  Events: {len(events)}")
+              print(f"  Meets: {len(meets)}")
+              print(f"  Results: {len(results)}")
+          EOF
