@@ -50,35 +50,35 @@
   },
   {
     "id": "E2E_SYNC_TEST_SW001",
-    "name": "E2E_SYNC_TEST_SW001_A",
+    "name": "E2E_SYNC_TEST_SW001_DEV_A",
     "gender": "male",
     "group": "E2E_TEST_GROUP",
     "status": "active",
     "createdAt": "2026-09-22T12:34:02Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-22T12:37:20Z",
+    "updatedAt": "2026-09-22T12:43:27Z",
     "updatedBy": "admin"
   },
   {
     "id": "E2E_SYNC_TEST_SW002",
-    "name": "E2E_SYNC_TEST_SW002_A",
+    "name": "E2E_SYNC_TEST_SW002_DEV_A",
     "gender": "male",
     "group": "E2E_TEST_GROUP",
     "status": "active",
     "createdAt": "2026-09-22T12:35:12Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-22T12:37:20Z",
+    "updatedAt": "2026-09-22T12:43:27Z",
     "updatedBy": "admin"
   },
   {
     "id": "E2E_SYNC_TEST_SW003",
-    "name": "E2E_SYNC_TEST_SW003_A",
+    "name": "E2E_SYNC_TEST_SW003_DEV_A",
     "gender": "male",
     "group": "E2E_TEST_GROUP",
     "status": "active",
     "createdAt": "2026-09-22T12:35:12Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-22T12:37:20Z",
+    "updatedAt": "2026-09-22T12:43:27Z",
     "updatedBy": "admin"
   },
   {
