@@ -1,0 +1,543 @@
+{
+  "metadata": {
+    "source": "国家体育总局《运动员技术等级标准》体竞字〔2024〔121号",
+    "sourceUrl": "https://www.sport.gov.cn/n4/n220/c28294142/content.html",
+    "publishDate": "2024-10-24",
+    "effectiveDate": "2025-01-01",
+    "version": "2024",
+    "sport": "swimming",
+    "gradeOrder": [
+      "international_master",
+      "master",
+      "first_class",
+      "second_class",
+      "third_class"
+    ],
+    "gradeNames": {
+      "international_master": "国际级运动健将",
+      "master": "运动健将",
+      "first_class": "一级运动员",
+      "second_class": "二级运动员",
+      "third_class": "三级运动员"
+    },
+    "poolTypes": [
+      "50m_pool",
+      "25m_pool"
+    ],
+    "note": "数据来源于国家体育总局官方PDF文件，共18个小项（含100米混合泳），男子女子各18项。100米混合泳仅在25米池设项，50米池无国际级运动健将标准。"
+  },
+  "men": {
+    "50m_pool": {
+      "50_freestyle": {
+        "international_master": 21960,
+        "master": 23280,
+        "first_class": 24500,
+        "second_class": 27500,
+        "third_class": 32000
+      },
+      "100_freestyle": {
+        "international_master": 48340,
+        "master": 51500,
+        "first_class": 55500,
+        "second_class": 65000,
+        "third_class": 70000
+      },
+      "200_freestyle": {
+        "international_master": 106260,
+        "master": 111550,
+        "first_class": 123000,
+        "second_class": 143000,
+        "third_class": 152000
+      },
+      "400_freestyle": {
+        "international_master": 226780,
+        "master": 238600,
+        "first_class": 261000,
+        "second_class": 306000,
+        "third_class": 328000
+      },
+      "800_freestyle": {
+        "international_master": 471650,
+        "master": 504000,
+        "first_class": 542000,
+        "second_class": 632000,
+        "third_class": 675000
+      },
+      "1500_freestyle": {
+        "international_master": 900990,
+        "master": 960300,
+        "first_class": 1040000,
+        "second_class": 1215000,
+        "third_class": 1300000
+      },
+      "50_backstroke": {
+        "international_master": 25160,
+        "master": 27430,
+        "first_class": 30500,
+        "second_class": 35000,
+        "third_class": 37000
+      },
+      "100_backstroke": {
+        "international_master": 53740,
+        "master": 58450,
+        "first_class": 64000,
+        "second_class": 74000,
+        "third_class": 82000
+      },
+      "200_backstroke": {
+        "international_master": 117500,
+        "master": 126450,
+        "first_class": 138000,
+        "second_class": 161000,
+        "third_class": 180000
+      },
+      "50_breaststroke": {
+        "international_master": 27330,
+        "master": 28750,
+        "first_class": 32500,
+        "second_class": 37000,
+        "third_class": 42000
+      },
+      "100_breaststroke": {
+        "international_master": 59490,
+        "master": 63800,
+        "first_class": 71000,
+        "second_class": 77000,
+        "third_class": 85000
+      },
+      "200_breaststroke": {
+        "international_master": 129680,
+        "master": 141900,
+        "first_class": 155000,
+        "second_class": 170000,
+        "third_class": 187000
+      },
+      "50_butterfly": {
+        "international_master": 23530,
+        "master": 24890,
+        "first_class": 27000,
+        "second_class": 31000,
+        "third_class": 33000
+      },
+      "100_butterfly": {
+        "international_master": 51670,
+        "master": 55450,
+        "first_class": 60000,
+        "second_class": 70000,
+        "third_class": 73000
+      },
+      "200_butterfly": {
+        "international_master": 115780,
+        "master": 122700,
+        "first_class": 134000,
+        "second_class": 158000,
+        "third_class": 164000
+      },
+      "100_medley": {
+        "master": 52980,
+        "first_class": 60360,
+        "second_class": 68000,
+        "third_class": 74000
+      },
+      "200_medley": {
+        "international_master": 117940,
+        "master": 128200,
+        "first_class": 139000,
+        "second_class": 160000,
+        "third_class": 170000
+      },
+      "400_medley": {
+        "international_master": 252500,
+        "master": 271200,
+        "first_class": 298300,
+        "second_class": 331000,
+        "third_class": 360000
+      }
+    },
+    "25m_pool": {
+      "50_freestyle": {
+        "international_master": 21400,
+        "master": 22480,
+        "first_class": 23600,
+        "second_class": 26500,
+        "third_class": 30000
+      },
+      "100_freestyle": {
+        "international_master": 47230,
+        "master": 49300,
+        "first_class": 53100,
+        "second_class": 62000,
+        "third_class": 67000
+      },
+      "200_freestyle": {
+        "international_master": 104080,
+        "master": 108550,
+        "first_class": 119800,
+        "second_class": 139300,
+        "third_class": 148000
+      },
+      "400_freestyle": {
+        "international_master": 222500,
+        "master": 230000,
+        "first_class": 251800,
+        "second_class": 295000,
+        "third_class": 317000
+      },
+      "800_freestyle": {
+        "international_master": 465020,
+        "master": 494300,
+        "first_class": 531700,
+        "second_class": 619000,
+        "third_class": 662000
+      },
+      "1500_freestyle": {
+        "international_master": 889290,
+        "master": 933800,
+        "first_class": 1010900,
+        "second_class": 1181000,
+        "third_class": 1265000
+      },
+      "50_backstroke": {
+        "international_master": 23380,
+        "master": 25800,
+        "first_class": 28650,
+        "second_class": 33000,
+        "third_class": 35000
+      },
+      "100_backstroke": {
+        "international_master": 51300,
+        "master": 54750,
+        "first_class": 59950,
+        "second_class": 69300,
+        "third_class": 77000
+      },
+      "200_backstroke": {
+        "international_master": 112660,
+        "master": 119450,
+        "first_class": 130300,
+        "second_class": 151000,
+        "third_class": 170000
+      },
+      "50_breaststroke": {
+        "international_master": 26570,
+        "master": 27750,
+        "first_class": 31250,
+        "second_class": 35500,
+        "third_class": 41000
+      },
+      "100_breaststroke": {
+        "international_master": 57630,
+        "master": 62000,
+        "first_class": 69000,
+        "second_class": 75000,
+        "third_class": 83000
+      },
+      "200_breaststroke": {
+        "international_master": 126230,
+        "master": 135900,
+        "first_class": 148500,
+        "second_class": 163000,
+        "third_class": 180000
+      },
+      "50_butterfly": {
+        "international_master": 22530,
+        "master": 24300,
+        "first_class": 26350,
+        "second_class": 30000,
+        "third_class": 32000
+      },
+      "100_butterfly": {
+        "international_master": 50570,
+        "master": 53600,
+        "first_class": 58000,
+        "second_class": 69000,
+        "third_class": 71000
+      },
+      "200_butterfly": {
+        "international_master": 113610,
+        "master": 118800,
+        "first_class": 129800,
+        "second_class": 153000,
+        "third_class": 159000
+      },
+      "100_medley": {
+        "international_master": 52980,
+        "master": 55260,
+        "first_class": 60360,
+        "second_class": 68000,
+        "third_class": 74000
+      },
+      "200_medley": {
+        "international_master": 115250,
+        "master": 123300,
+        "first_class": 133650,
+        "second_class": 153800,
+        "third_class": 163000
+      },
+      "400_medley": {
+        "international_master": 249190,
+        "master": 262600,
+        "first_class": 288880,
+        "second_class": 320000,
+        "third_class": 350000
+      }
+    }
+  },
+  "women": {
+    "50m_pool": {
+      "50_freestyle": {
+        "international_master": 24700,
+        "master": 25850,
+        "first_class": 27200,
+        "second_class": 31500,
+        "third_class": 36000
+      },
+      "100_freestyle": {
+        "international_master": 53610,
+        "master": 56300,
+        "first_class": 62500,
+        "second_class": 73000,
+        "third_class": 78000
+      },
+      "200_freestyle": {
+        "international_master": 117260,
+        "master": 121200,
+        "first_class": 135000,
+        "second_class": 159000,
+        "third_class": 170000
+      },
+      "400_freestyle": {
+        "international_master": 247900,
+        "master": 255800,
+        "first_class": 284000,
+        "second_class": 340000,
+        "third_class": 352000
+      },
+      "800_freestyle": {
+        "international_master": 509170,
+        "master": 533400,
+        "first_class": 582000,
+        "second_class": 696000,
+        "third_class": 725000
+      },
+      "1500_freestyle": {
+        "international_master": 975270,
+        "master": 1034000,
+        "first_class": 1115000,
+        "second_class": 1335000,
+        "third_class": 1375000
+      },
+      "50_backstroke": {
+        "international_master": 28220,
+        "master": 30550,
+        "first_class": 33000,
+        "second_class": 38500,
+        "third_class": 43000
+      },
+      "100_backstroke": {
+        "international_master": 59990,
+        "master": 64300,
+        "first_class": 69000,
+        "second_class": 81000,
+        "third_class": 91000
+      },
+      "200_backstroke": {
+        "international_master": 130390,
+        "master": 138300,
+        "first_class": 149500,
+        "second_class": 173000,
+        "third_class": 196000
+      },
+      "50_breaststroke": {
+        "international_master": 31020,
+        "master": 31700,
+        "first_class": 36000,
+        "second_class": 41000,
+        "third_class": 44000
+      },
+      "100_breaststroke": {
+        "international_master": 66790,
+        "master": 70750,
+        "first_class": 78000,
+        "second_class": 87000,
+        "third_class": 96000
+      },
+      "200_breaststroke": {
+        "international_master": 143910,
+        "master": 156600,
+        "first_class": 171000,
+        "second_class": 193000,
+        "third_class": 205000
+      },
+      "50_butterfly": {
+        "international_master": 26320,
+        "master": 27500,
+        "first_class": 30500,
+        "second_class": 36500,
+        "third_class": 38000
+      },
+      "100_butterfly": {
+        "international_master": 57920,
+        "master": 60500,
+        "first_class": 68000,
+        "second_class": 80000,
+        "third_class": 83000
+      },
+      "200_butterfly": {
+        "international_master": 128850,
+        "master": 134200,
+        "first_class": 145000,
+        "second_class": 174500,
+        "third_class": 182000
+      },
+      "100_medley": {
+        "master": 59650,
+        "first_class": 67400,
+        "second_class": 80000,
+        "third_class": 85000
+      },
+      "200_medley": {
+        "international_master": 131470,
+        "master": 138400,
+        "first_class": 150000,
+        "second_class": 178000,
+        "third_class": 188000
+      },
+      "400_medley": {
+        "international_master": 278530,
+        "master": 296800,
+        "first_class": 318000,
+        "second_class": 381000,
+        "third_class": 397000
+      }
+    },
+    "25m_pool": {
+      "50_freestyle": {
+        "international_master": 24440,
+        "master": 25000,
+        "first_class": 26400,
+        "second_class": 30500,
+        "third_class": 34000
+      },
+      "100_freestyle": {
+        "international_master": 52850,
+        "master": 54700,
+        "first_class": 60500,
+        "second_class": 71000,
+        "third_class": 75000
+      },
+      "200_freestyle": {
+        "international_master": 115600,
+        "master": 118500,
+        "first_class": 132000,
+        "second_class": 155000,
+        "third_class": 165000
+      },
+      "400_freestyle": {
+        "international_master": 246950,
+        "master": 251400,
+        "first_class": 279000,
+        "second_class": 335000,
+        "third_class": 346000
+      },
+      "800_freestyle": {
+        "international_master": 506710,
+        "master": 525200,
+        "first_class": 573000,
+        "second_class": 680000,
+        "third_class": 713000
+      },
+      "1500_freestyle": {
+        "international_master": 969090,
+        "master": 1020500,
+        "first_class": 1100000,
+        "second_class": 1305000,
+        "third_class": 1357000
+      },
+      "50_backstroke": {
+        "international_master": 26540,
+        "master": 28700,
+        "first_class": 31000,
+        "second_class": 36200,
+        "third_class": 40000
+      },
+      "100_backstroke": {
+        "international_master": 58080,
+        "master": 61550,
+        "first_class": 66000,
+        "second_class": 77500,
+        "third_class": 87000
+      },
+      "200_backstroke": {
+        "international_master": 125540,
+        "master": 133600,
+        "first_class": 144500,
+        "second_class": 167000,
+        "third_class": 189000
+      },
+      "50_breaststroke": {
+        "international_master": 30450,
+        "master": 30850,
+        "first_class": 34700,
+        "second_class": 40000,
+        "third_class": 42000
+      },
+      "100_breaststroke": {
+        "international_master": 65280,
+        "master": 68750,
+        "first_class": 75800,
+        "second_class": 84500,
+        "third_class": 93000
+      },
+      "200_breaststroke": {
+        "international_master": 143380,
+        "master": 153600,
+        "first_class": 167000,
+        "second_class": 188800,
+        "third_class": 201000
+      },
+      "50_butterfly": {
+        "international_master": 25820,
+        "master": 27400,
+        "first_class": 30400,
+        "second_class": 36400,
+        "third_class": 37000
+      },
+      "100_butterfly": {
+        "international_master": 57400,
+        "master": 59000,
+        "first_class": 66000,
+        "second_class": 78000,
+        "third_class": 81000
+      },
+      "200_butterfly": {
+        "international_master": 128450,
+        "master": 131200,
+        "first_class": 142000,
+        "second_class": 171300,
+        "third_class": 179000
+      },
+      "100_medley": {
+        "international_master": 59650,
+        "master": 62500,
+        "first_class": 67400,
+        "second_class": 80000,
+        "third_class": 85000
+      },
+      "200_medley": {
+        "international_master": 130160,
+        "master": 133700,
+        "first_class": 145000,
+        "second_class": 172000,
+        "third_class": 182000
+      },
+      "400_medley": {
+        "international_master": 277540,
+        "master": 289800,
+        "first_class": 310000,
+        "second_class": 371000,
+        "third_class": 387000
+      }
+    }
+  }
+}

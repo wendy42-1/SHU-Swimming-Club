@@ -120,7 +120,7 @@
     import { hasPermission } from '../src/services/authService.js';
     import { getAllMeets } from '../src/services/meetService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createMeet, updateMeet } from '../src/services/writeService.js';
+    import { createMeet, updateMeet, softDeleteMeet, deleteMeet, hasMeetResults } from '../src/services/writeService.js';
 
     initPage();
 
@@ -155,11 +155,15 @@
 
       tbody.innerHTML = allMeets.map(m => {
         const count = allResults.filter(r => r.meetId === m.id && r.status === 'official').length;
-        const statusBadge = m.status === 'completed'
-          ? '<span class="badge badge-inactive">已结束</span>'
-          : m.status === 'active'
-            ? '<span class="badge badge-active">进行中</span>'
-            : '<span class="badge badge-relay">计划中</span>';
+        const statusBadge = m.status === 'inactive'
+          ? '<span class="badge badge-inactive">已停用</span>'
+          : m.status === 'completed'
+            ? '<span class="badge badge-inactive">已结束</span>'
+            : m.status === 'active'
+              ? '<span class="badge badge-active">进行中</span>'
+              : '<span class="badge badge-relay">计划中</span>';
+        const canDelete = hasPermission('deleteMeet') && count === 0 && m.status !== 'inactive';
+        const canDeactivate = hasPermission('deleteMeet') && m.status !== 'inactive';
         return `
           <tr>
             <td>${escapeHtml(m.id)}</td>
@@ -169,6 +173,8 @@
             <td>${statusBadge} <span style="font-size:0.75rem;color:var(--text-secondary);">(${count}项)</span></td>
             <td class="actions">
               <button class="btn btn-outline btn-sm" data-id="${escapeHtml(m.id)}" data-action="edit">编辑</button>
+              ${canDeactivate ? `<button class="btn btn-danger btn-sm" data-id="${escapeHtml(m.id)}" data-action="deactivate">停用</button>` : ''}
+              ${canDelete ? `<button class="btn btn-danger btn-sm" data-id="${escapeHtml(m.id)}" data-action="delete">删除</button>` : ''}
             </td>
           </tr>
         `;
@@ -177,6 +183,52 @@
       tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
         btn.addEventListener('click', () => openEditModal(btn.dataset.id));
       });
+      tbody.querySelectorAll('[data-action="deactivate"]').forEach(btn => {
+        btn.addEventListener('click', () => deactivateMeet(btn.dataset.id));
+      });
+      tbody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', () => removeMeet(btn.dataset.id));
+      });
+    }
+
+    // 停用比赛（软删除，保留历史）
+    async function deactivateMeet(id) {
+      const meet = allMeets.find(m => m.id === id);
+      if (!meet) return;
+      const hasResults = await hasMeetResults(id);
+      const confirmMsg = hasResults
+        ? `该比赛已有成绩记录，停用后成绩将保留。\n确定停用比赛 ${meet.name} 吗？`
+        : `确定停用比赛 ${meet.name} 吗？`;
+      if (!confirm(confirmMsg)) return;
+      try {
+        const updated = await softDeleteMeet(id, '管理员停用');
+        const idx = allMeets.findIndex(m => m.id === id);
+        if (idx !== -1) allMeets[idx] = updated;
+        renderTable();
+        showAlert('alertBox', `比赛 ${meet.name} 已停用`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '停用失败: ' + err.message, 'error');
+      }
+    }
+
+    // 物理删除比赛（仅限无成绩）
+    async function removeMeet(id) {
+      const meet = allMeets.find(m => m.id === id);
+      if (!meet) return;
+      const hasResults = await hasMeetResults(id);
+      if (hasResults) {
+        showAlert('alertBox', `比赛 ${meet.name} 已有成绩记录，禁止物理删除，只能停用`, 'warning');
+        return;
+      }
+      if (!confirm(`确定永久删除比赛 ${meet.name} 吗？此操作不可恢复！`)) return;
+      try {
+        await deleteMeet(id);
+        allMeets = allMeets.filter(m => m.id !== id);
+        renderTable();
+        showAlert('alertBox', `比赛 ${meet.name} 已删除`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '删除失败: ' + err.message, 'error');
+      }
     }
 
     // 新增比赛

@@ -60,6 +60,11 @@
       <!-- 运动员列表 -->
       <div class="card" style="margin-top:16px;">
         <h2 class="section-title" style="border:none;margin-bottom:8px;">运动员列表</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <button type="button" class="btn btn-sm filter-tab" data-filter="all" style="padding:6px 14px;">全部</button>
+          <button type="button" class="btn btn-sm filter-tab" data-filter="active" style="padding:6px 14px;">在队</button>
+          <button type="button" class="btn btn-sm filter-tab" data-filter="inactive" style="padding:6px 14px;">已停用</button>
+        </div>
         <input type="text" id="searchInput" class="search-box" placeholder="搜索姓名或ID...">
         <div style="overflow-x:auto;">
           <table class="data-table" id="swimmerTable">
@@ -124,12 +129,15 @@
     import { initPage, escapeHtml, showAlert, genderName } from '../assets/js/app.js';
     import { isAdmin, hasPermission, getCurrentRole } from '../src/services/authService.js';
     import { getAllSwimmers } from '../src/services/swimmerService.js';
-    import { createSwimmer, updateSwimmer } from '../src/services/writeService.js';
+    import { getAllResults } from '../src/services/resultService.js';
+    import { createSwimmer, updateSwimmer, softDeleteSwimmer, hasSwimmerResults } from '../src/services/writeService.js';
 
     initPage();
 
     let allSwimmers = [];
+    let allResults = [];
     let editingId = null;
+    let statusFilter = 'all'; // 'all' | 'active' | 'inactive'
 
     if (!hasPermission('addSwimmer')) {
       document.getElementById('accessDenied').style.display = 'block';
@@ -142,7 +150,7 @@
 
     async function loadData() {
       try {
-        allSwimmers = await getAllSwimmers();
+        [allSwimmers, allResults] = await Promise.all([getAllSwimmers(), getAllResults()]);
         renderTable();
       } catch (err) {
         showAlert('alertBox', '加载失败: ' + err.message, 'error');
@@ -152,6 +160,11 @@
     function renderTable() {
       const search = document.getElementById('searchInput').value.toLowerCase();
       let swimmers = allSwimmers;
+      if (statusFilter === 'active') {
+        swimmers = swimmers.filter(s => s.status !== 'inactive');
+      } else if (statusFilter === 'inactive') {
+        swimmers = swimmers.filter(s => s.status === 'inactive');
+      }
       if (search) {
         swimmers = swimmers.filter(s =>
           (s.name || '').toLowerCase().includes(search) ||
@@ -165,31 +178,68 @@
         return;
       }
 
-      tbody.innerHTML = swimmers.map(s => `
+      tbody.innerHTML = swimmers.map(s => {
+        const hasResults = allResults.some(r => r.swimmerId === s.id);
+        const canDeactivate = hasPermission('deleteSwimmer') && s.status !== 'inactive';
+        return `
         <tr>
           <td>${escapeHtml(s.id)}</td>
           <td>${escapeHtml(s.name)}</td>
           <td>${genderName(s.gender)}</td>
           <td>${escapeHtml(s.group || '')}</td>
           <td>
-            <button class="status-toggle ${s.status === 'active' ? 'active' : 'inactive'}" data-id="${escapeHtml(s.id)}" data-action="toggle">
-              ${s.status === 'active' ? '活跃' : '停用'}
-            </button>
+            <span class="badge ${s.status === 'inactive' ? 'badge-inactive' : 'badge-active'}">
+              ${s.status === 'inactive' ? '已停用' : '在队'}
+            </span>
           </td>
           <td class="actions">
             <button class="btn btn-outline btn-sm" data-id="${escapeHtml(s.id)}" data-action="edit">编辑</button>
+            ${canDeactivate ? `<button class="btn btn-danger btn-sm" data-id="${escapeHtml(s.id)}" data-action="deactivate">停用</button>` : ''}
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
 
       // 绑定事件
       tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
         btn.addEventListener('click', () => openEditModal(btn.dataset.id));
       });
-      tbody.querySelectorAll('[data-action="toggle"]').forEach(btn => {
-        btn.addEventListener('click', () => toggleStatus(btn.dataset.id));
+      tbody.querySelectorAll('[data-action="deactivate"]').forEach(btn => {
+        btn.addEventListener('click', () => deactivateSwimmer(btn.dataset.id));
       });
     }
+
+    // 停用运动员（软删除，保留历史成绩）
+    async function deactivateSwimmer(id) {
+      const swimmer = allSwimmers.find(s => s.id === id);
+      if (!swimmer) return;
+      const hasResults = await hasSwimmerResults(id);
+      const confirmMsg = hasResults
+        ? `该运动员已有历史成绩，停用后成绩将保留但不再显示在队列表中。\n确定停用 ${swimmer.name} 吗？`
+        : `确定停用 ${swimmer.name} 吗？停用后不再显示在队列表中。`;
+      if (!confirm(confirmMsg)) return;
+      try {
+        const updated = await softDeleteSwimmer(id, '管理员停用');
+        const idx = allSwimmers.findIndex(s => s.id === id);
+        if (idx !== -1) allSwimmers[idx] = updated;
+        renderTable();
+        showAlert('alertBox', `${swimmer.name} 已停用（历史成绩已保留）`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '停用失败: ' + err.message, 'error');
+      }
+    }
+
+    // 筛选标签点击
+    document.querySelectorAll('.filter-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        statusFilter = btn.dataset.filter;
+        document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('btn-primary'));
+        btn.classList.add('btn-primary');
+        renderTable();
+      });
+    });
+    // 默认高亮"全部"
+    document.querySelector('.filter-tab[data-filter="all"]').classList.add('btn-primary');
 
     // 新增运动员
     document.getElementById('addForm').addEventListener('submit', async (e) => {
@@ -275,22 +325,6 @@
         showAlert('alertBox', '修改失败: ' + err.message, 'error');
       }
     });
-
-    // 切换状态
-    async function toggleStatus(id) {
-      const swimmer = allSwimmers.find(s => s.id === id);
-      if (!swimmer) return;
-      const newStatus = swimmer.status === 'active' ? 'inactive' : 'active';
-      try {
-        const updated = await updateSwimmer(id, { status: newStatus });
-        const idx = allSwimmers.findIndex(s => s.id === id);
-        if (idx !== -1) allSwimmers[idx] = updated;
-        renderTable();
-        showAlert('alertBox', `状态已切换为: ${newStatus === 'active' ? '活跃' : '停用'}`, 'success');
-      } catch (err) {
-        showAlert('alertBox', '切换失败: ' + err.message, 'error');
-      }
-    }
   </script>
 </body>
 </html>

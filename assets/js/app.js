@@ -65,6 +65,7 @@ function renderNavbar(role) {
     { href: `${prefix}pages/meets.html`, label: '比赛', always: true },
     { href: `${prefix}pages/events.html`, label: '项目', always: true },
     { href: `${prefix}pages/ranking.html`, label: '排名', always: true },
+    { href: `${prefix}pages/athlete-grade.html`, label: '等级查询', always: true },
     { href: `${prefix}pages/admin-results-add.html`, label: '录入成绩', scoreAdminOnly: true },
     { href: `${prefix}pages/admin.html`, label: '管理', adminOnly: true },
   ];

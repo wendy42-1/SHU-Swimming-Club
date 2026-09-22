@@ -1,13 +1,13 @@
-/**
+﻿/**
  * writeService.js - 数据写入层（localStorage）
- * 
+ *
  * ⚠️ 重要说明：
  * 当前版本使用 localStorage 作为临时写入层。
  * - 新增/修改的数据保存在浏览器 localStorage 中
  * - 刷新页面后数据仍然存在（同一浏览器同一设备）
  * - 但不同设备/浏览器之间不共享 localStorage 数据
  * - 未来可迁移到 GitHub API 或后端服务实现持久化写入
- * 
+ *
  * 数据合并策略：
  * - 读取时：dataService 优先从 localStorage 读取覆盖数据，回退到 JSON 文件
  * - 写入时：先读取 JSON 原始数据（或已有的 localStorage 数据），合并后写回 localStorage
@@ -146,6 +146,45 @@ export async function updateSwimmer(id, updates) {
   return swimmers[idx];
 }
 
+/**
+ * 软删除运动员（仅停用，不物理删除）
+ *
+ * 规则：
+ * - 有历史成绩的运动员禁止物理删除，只能停用（status=inactive）
+ * - 停用后历史成绩必须保留
+ *
+ * @param {string} id - 运动员 ID
+ * @param {string} reason - 停用原因
+ * @returns {Promise<Object>} 更新后的运动员对象
+ */
+export async function softDeleteSwimmer(id, reason) {
+  const swimmers = await getCurrentData('swimmers');
+  const idx = swimmers.findIndex(s => s.id === id);
+  if (idx === -1) throw new Error('运动员不存在: ' + id);
+  if (swimmers[idx].status === 'inactive') throw new Error('该运动员已处于停用状态');
+
+  swimmers[idx] = {
+    ...swimmers[idx],
+    status: 'inactive',
+    updatedAt: now(),
+    updatedBy: getOperator(),
+    updateReason: reason || '运动员停用'
+  };
+
+  writeLocal('swimmers', swimmers);
+  return swimmers[idx];
+}
+
+/**
+ * 检查运动员是否有历史成绩
+ * @param {string} swimmerId - 运动员 ID
+ * @returns {Promise<boolean>}
+ */
+export async function hasSwimmerResults(swimmerId) {
+  const results = await getCurrentData('results');
+  return results.some(r => r.swimmerId === swimmerId);
+}
+
 // ============================================
 // 比赛管理
 // ============================================
@@ -201,6 +240,67 @@ export async function updateMeet(id, updates) {
   
   writeLocal('meets', meets);
   return meets[idx];
+}
+
+/**
+ * 软删除比赛（停用，保留历史）
+ * @param {string} id - 比赛 ID
+ * @param {string} reason - 停用原因
+ * @returns {Promise<Object>} 更新后的比赛对象
+ */
+export async function softDeleteMeet(id, reason) {
+  const meets = await getCurrentData('meets');
+  const idx = meets.findIndex(m => m.id === id);
+  if (idx === -1) throw new Error('比赛不存在: ' + id);
+  if (meets[idx].status === 'inactive') throw new Error('该比赛已处于停用状态');
+
+  meets[idx] = {
+    ...meets[idx],
+    status: 'inactive',
+    updatedAt: now(),
+    updatedBy: getOperator(),
+    updateReason: reason || '比赛停用'
+  };
+
+  writeLocal('meets', meets);
+  return meets[idx];
+}
+
+/**
+ * 物理删除比赛（仅限无成绩的比赛）
+ *
+ * 规则：
+ * - 有成绩的比赛禁止物理删除，只能停用（status=inactive）
+ * - 无成绩的比赛可物理删除，但需前端二次确认
+ *
+ * @param {string} id - 比赛 ID
+ * @returns {Promise<boolean>} 是否删除成功
+ */
+export async function deleteMeet(id) {
+  const meets = await getCurrentData('meets');
+  const idx = meets.findIndex(m => m.id === id);
+  if (idx === -1) throw new Error('比赛不存在: ' + id);
+
+  // 检查是否有成绩
+  const results = await getCurrentData('results');
+  const hasResults = results.some(r => r.meetId === id);
+  if (hasResults) {
+    throw new Error('该比赛已有成绩记录，禁止物理删除，只能停用');
+  }
+
+  meets.splice(idx, 1);
+  writeLocal('meets', meets);
+  return true;
+}
+
+/**
+ * 检查比赛是否有成绩
+ * @param {string} meetId - 比赛 ID
+ * @returns {Promise<boolean>}
+ */
+export async function hasMeetResults(meetId) {
+  const results = await getCurrentData('results');
+  return results.some(r => r.meetId === meetId);
 }
 
 // ============================================
@@ -339,6 +439,19 @@ export async function softDeleteResult(id, reason) {
   return updateResult(id, {
     status: 'DQ',
     updateReason: reason || '成绩标记为 DQ'
+  });
+}
+
+/**
+ * 删除成绩（标记 status=deleted，保留完整历史，不物理删除）
+ * @param {string} id - 成绩 ID
+ * @param {string} reason - 删除原因
+ * @returns {Promise<Object>} 更新后的成绩对象
+ */
+export async function deleteResult(id, reason) {
+  return updateResult(id, {
+    status: 'deleted',
+    updateReason: reason || '成绩删除'
   });
 }
 

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>等级查询 - 鼠智赛事通</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">运动员技术等级查询</h1>
+    <p class="page-subtitle">依据国家体育总局《运动员技术等级标准》（体竞字〔2024〕121号，2025年1月1日施行）</p>
+
+    <div class="card" style="padding:16px;margin-bottom:16px;">
+      <div class="filter-bar" style="flex-wrap:wrap;gap:10px;">
+        <select id="inputGender" aria-label="性别">
+          <option value="male">男</option>
+          <option value="female">女</option>
+        </select>
+        <select id="inputEvent" aria-label="项目">
+          <option value="">加载项目中...</option>
+        </select>
+        <select id="inputPoolType" aria-label="池型">
+          <option value="50m_pool">50米池</option>
+          <option value="25m_pool">25米池</option>
+        </select>
+        <input type="text" id="inputTime" placeholder="成绩，如 58.32 或 1:05.00" aria-label="成绩" style="width:180px;">
+        <button type="button" id="btnQuery" class="btn btn-primary">查询等级</button>
+      </div>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <div id="resultArea" style="display:none;">
+      <div class="card" style="padding:16px;margin-bottom:16px;">
+        <div id="resultSummary"></div>
+      </div>
+
+      <div class="card" style="padding:16px;">
+        <h3 style="margin:0 0 12px 0;font-size:1rem;">各等级标准对照</h3>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+            <thead>
+              <tr style="border-bottom:2px solid var(--border-color,#ddd);">
+                <th style="text-align:left;padding:8px 6px;">等级</th>
+                <th style="text-align:left;padding:8px 6px;">标准成绩</th>
+                <th style="text-align:left;padding:8px 6px;">你的成绩</th>
+                <th style="text-align:left;padding:8px 6px;">结果</th>
+              </tr>
+            </thead>
+            <tbody id="gradeDetailRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px;margin-top:16px;font-size:0.82rem;color:var(--text-secondary,#666);line-height:1.7;">
+      <strong>数据来源：</strong>国家体育总局《运动员技术等级标准》（体竞字〔2024〕121号），自2025年1月1日起施行。
+      游泳项目含男子、女子各18个可授予技术等级的小项，覆盖50米池与25米池两种池型。
+      <br>
+      <strong>说明：</strong>技术等级授予需满足相应比赛级别、裁判等要求，此处仅按成绩达标与否判定，最终以体育主管部门认定为准。
+      <br>
+      <a href="https://www.sport.gov.cn/n4/n220/c28294142/content.html" target="_blank" rel="noopener">官方通知原文（国家体育总局）</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, showAlert, clearAlert } from '../assets/js/app.js';
+    import { getSupportedEvents, getEligibleGrades, formatStandardTime } from '../src/algorithms/athleteGrade.js';
+    import { parseTime } from '../src/utils/time.js';
+
+    initPage();
+
+    const genderSel = document.getElementById('inputGender');
+    const eventSel = document.getElementById('inputEvent');
+    const poolSel = document.getElementById('inputPoolType');
+    const timeInput = document.getElementById('inputTime');
+    const btnQuery = document.getElementById('btnQuery');
+    const resultArea = document.getElementById('resultArea');
+    const resultSummary = document.getElementById('resultSummary');
+    const detailRows = document.getElementById('gradeDetailRows');
+
+    const GRADE_COLORS = {
+      international_master: '#8e44ad',
+      master: '#c0392b',
+      first_class: '#d35400',
+      second_class: '#2980b9',
+      third_class: '#27ae60'
+    };
+
+    let supportedEvents = [];
+
+    async function loadEvents() {
+      try {
+        const { events } = await getSupportedEvents();
+        supportedEvents = events;
+        eventSel.innerHTML = events.map(e =>
+          `<option value="${e.key}">${e.distance}米${e.strokeText}</option>`
+        ).join('');
+        if (events.length === 0) {
+          eventSel.innerHTML = '<option value="">暂无可查询项目</option>';
+        }
+      } catch (err) {
+        eventSel.innerHTML = '<option value="">项目加载失败</option>';
+        showAlert('alertContainer', `加载失败: ${escapeHtml(err.message)}`, 'error');
+      }
+    }
+
+    function formatTimeInput(text) {
+      try {
+        return formatStandardTime(parseTime(text));
+      } catch (e) {
+        return text || '—';
+      }
+    }
+
+    function renderResult(result, gender, eventName, poolName, timeMs) {
+      resultArea.style.display = 'block';
+
+      let summaryHtml = '';
+      if (result.note) {
+        summaryHtml = `<div class="alert alert-warning" style="display:block;margin:0;">${escapeHtml(result.note)}</div>`;
+      } else if (result.highestGrade) {
+        const color = GRADE_COLORS[result.highestGrade.grade] || '#333';
+        summaryHtml = `
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <div style="font-size:1.05rem;">
+              <strong>${gender} · ${escapeHtml(eventName)} · ${poolName}</strong>
+              <br>你的成绩：<strong>${formatStandardTime(timeMs)}</strong>
+            </div>
+            <div style="background:${color};color:#fff;padding:10px 18px;border-radius:8px;font-size:1.1rem;">
+              可授予 <strong>${escapeHtml(result.highestGrade.label)}</strong>
+            </div>
+          </div>`;
+      } else {
+        summaryHtml = `
+          <div style="font-size:1.05rem;">
+            <strong>${gender} · ${escapeHtml(eventName)} · ${poolName}</strong>
+            <br>很遗憾，该成绩暂未达到任何技术等级标准。
+          </div>`;
+      }
+      resultSummary.innerHTML = summaryHtml;
+
+      detailRows.innerHTML = result.details.map(d => {
+        const color = GRADE_COLORS[d.grade] || '#333';
+        const badge = d.eligible
+          ? `<span style="background:${color};color:#fff;padding:2px 10px;border-radius:12px;font-size:0.8rem;">达标</span>`
+          : `<span style="color:#999;font-size:0.85rem;">未达标</span>`;
+        const diffText = d.differenceText
+          ? `<span style="color:${d.eligible ? '#27ae60' : '#c0392b'};font-size:0.85rem;">${escapeHtml(d.differenceText)}</span>`
+          : '';
+        return `
+          <tr style="border-bottom:1px solid var(--border-color,#eee);">
+            <td style="padding:8px 6px;font-weight:${d.eligible ? 'bold' : 'normal'};color:${d.eligible ? color : '#333'};">${escapeHtml(d.label)}</td>
+            <td style="padding:8px 6px;">${escapeHtml(d.standardText)}</td>
+            <td style="padding:8px 6px;">${formatStandardTime(timeMs)}</td>
+            <td style="padding:8px 6px;">${badge} ${diffText}</td>
+          </tr>`;
+      }).join('');
+    }
+
+    btnQuery.addEventListener('click', async () => {
+      clearAlert('alertContainer');
+      let timeMs;
+      try {
+        timeMs = parseTime(timeInput.value.trim());
+      } catch (err) {
+        showAlert('alertContainer', err.message, 'error');
+        return;
+      }
+
+      const eventKey = eventSel.value;
+      if (!eventKey) {
+        showAlert('alertContainer', '请先选择项目', 'error');
+        return;
+      }
+
+      try {
+        const ev = supportedEvents.find(e => e.key === eventKey);
+        const eventName = ev ? `${ev.distance}米${ev.strokeText}` : eventKey;
+        const genderName = genderSel.value === 'female' ? '女' : '男';
+        const poolName = poolSel.value === '25m_pool' ? '25米池' : '50米池';
+
+        const result = await getEligibleGrades({
+          gender: genderSel.value,
+          eventId: eventKey,
+          timeMs,
+          poolType: poolSel.value
+        });
+        renderResult(result, genderName, eventName, poolName, timeMs);
+      } catch (err) {
+        showAlert('alertContainer', `查询失败：${escapeHtml(err.message)}`, 'error');
+      }
+    });
+
+    timeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') btnQuery.click();
+    });
+
+    loadEvents();
+  </script>
+</body>
+</html>
