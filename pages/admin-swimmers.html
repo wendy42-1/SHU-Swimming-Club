@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>运动员管理 - 鼠智赛事通</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">运动员管理</h1>
+
+    <div class="local-storage-notice">
+      <strong>提示</strong>
+      新增和修改的运动员数据保存在浏览器 localStorage 中，刷新后保留，但其他设备不可见。
+    </div>
+
+    <div id="accessDenied" style="display:none;">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <p>仅超级管理员可访问此页面</p>
+      </div>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div id="alertBox"></div>
+
+      <!-- 新增运动员表单 -->
+      <div class="card">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">新增运动员</h2>
+        <form id="addForm">
+          <div class="form-group">
+            <label for="swimmerName">姓名 *</label>
+            <input type="text" id="swimmerName" placeholder="请输入运动员姓名" required>
+          </div>
+          <div class="form-group">
+            <label for="swimmerGender">性别 *</label>
+            <select id="swimmerGender" required>
+              <option value="male">男</option>
+              <option value="female">女</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="swimmerGroup">分组</label>
+            <input type="text" id="swimmerGroup" placeholder="自动根据性别填入，可修改">
+          </div>
+          <div class="form-group">
+            <label for="swimmerStatus">状态</label>
+            <select id="swimmerStatus">
+              <option value="active">活跃</option>
+              <option value="inactive">停用</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">新增运动员</button>
+        </form>
+      </div>
+
+      <!-- 运动员列表 -->
+      <div class="card" style="margin-top:16px;">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">运动员列表</h2>
+        <input type="text" id="searchInput" class="search-box" placeholder="搜索姓名或ID...">
+        <div style="overflow-x:auto;">
+          <table class="data-table" id="swimmerTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>姓名</th>
+                <th>性别</th>
+                <th>分组</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="swimmerTableBody">
+              <tr><td colspan="6" style="text-align:center;">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑模态框 -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>编辑运动员</h2>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>姓名</label>
+          <input type="text" id="editName">
+        </div>
+        <div class="form-group">
+          <label>性别</label>
+          <select id="editGender">
+            <option value="male">男</option>
+            <option value="female">女</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>分组</label>
+          <input type="text" id="editGroup">
+        </div>
+        <div class="form-group">
+          <label>状态</label>
+          <select id="editStatus">
+            <option value="active">活跃</option>
+            <option value="inactive">停用</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="cancelEdit">取消</button>
+        <button class="btn btn-primary" id="saveEdit">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, showAlert, genderName } from '../assets/js/app.js';
+    import { isAdmin, hasPermission, getCurrentRole } from '../src/services/authService.js';
+    import { getAllSwimmers } from '../src/services/swimmerService.js';
+    import { createSwimmer, updateSwimmer } from '../src/services/writeService.js';
+
+    initPage();
+
+    let allSwimmers = [];
+    let editingId = null;
+
+    if (!hasPermission('addSwimmer')) {
+      document.getElementById('accessDenied').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    } else {
+      document.getElementById('accessDenied').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      loadData();
+    }
+
+    async function loadData() {
+      try {
+        allSwimmers = await getAllSwimmers();
+        renderTable();
+      } catch (err) {
+        showAlert('alertBox', '加载失败: ' + err.message, 'error');
+      }
+    }
+
+    function renderTable() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      let swimmers = allSwimmers;
+      if (search) {
+        swimmers = swimmers.filter(s =>
+          (s.name || '').toLowerCase().includes(search) ||
+          (s.id || '').toLowerCase().includes(search)
+        );
+      }
+
+      const tbody = document.getElementById('swimmerTableBody');
+      if (swimmers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">暂无运动员</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = swimmers.map(s => `
+        <tr>
+          <td>${escapeHtml(s.id)}</td>
+          <td>${escapeHtml(s.name)}</td>
+          <td>${genderName(s.gender)}</td>
+          <td>${escapeHtml(s.group || '')}</td>
+          <td>
+            <button class="status-toggle ${s.status === 'active' ? 'active' : 'inactive'}" data-id="${escapeHtml(s.id)}" data-action="toggle">
+              ${s.status === 'active' ? '活跃' : '停用'}
+            </button>
+          </td>
+          <td class="actions">
+            <button class="btn btn-outline btn-sm" data-id="${escapeHtml(s.id)}" data-action="edit">编辑</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // 绑定事件
+      tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+      });
+      tbody.querySelectorAll('[data-action="toggle"]').forEach(btn => {
+        btn.addEventListener('click', () => toggleStatus(btn.dataset.id));
+      });
+    }
+
+    // 新增运动员
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('swimmerName').value.trim();
+      const gender = document.getElementById('swimmerGender').value;
+      let group = document.getElementById('swimmerGroup').value.trim();
+      const status = document.getElementById('swimmerStatus').value;
+
+      if (!name) {
+        showAlert('alertBox', '姓名不能为空', 'warning');
+        return;
+      }
+
+      if (!group) {
+        group = gender === 'female' ? '女子组' : '男子组';
+      }
+
+      // 检查重名（同姓名+同性别）
+      const exists = allSwimmers.some(s => s.name === name && s.gender === gender);
+      if (exists) {
+        showAlert('alertBox', `已存在同名同性别运动员: ${name}`, 'warning');
+        return;
+      }
+
+      try {
+        const newSwimmer = await createSwimmer({ name, gender, group, status });
+        allSwimmers.push(newSwimmer);
+        renderTable();
+        document.getElementById('addForm').reset();
+        showAlert('alertBox', `新增成功: ${name} (ID: ${newSwimmer.id})`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '新增失败: ' + err.message, 'error');
+      }
+    });
+
+    // 搜索
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+
+    // 编辑模态框
+    function openEditModal(id) {
+      const swimmer = allSwimmers.find(s => s.id === id);
+      if (!swimmer) return;
+      editingId = id;
+      document.getElementById('editName').value = swimmer.name || '';
+      document.getElementById('editGender').value = swimmer.gender || 'male';
+      document.getElementById('editGroup').value = swimmer.group || '';
+      document.getElementById('editStatus').value = swimmer.status || 'active';
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('active');
+      editingId = null;
+    });
+
+    document.getElementById('cancelEdit').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('active');
+      editingId = null;
+    });
+
+    document.getElementById('saveEdit').addEventListener('click', async () => {
+      if (!editingId) return;
+      const updates = {
+        name: document.getElementById('editName').value.trim(),
+        gender: document.getElementById('editGender').value,
+        group: document.getElementById('editGroup').value.trim(),
+        status: document.getElementById('editStatus').value
+      };
+      if (!updates.name) {
+        showAlert('alertBox', '姓名不能为空', 'warning');
+        return;
+      }
+      try {
+        const updated = await updateSwimmer(editingId, updates);
+        const idx = allSwimmers.findIndex(s => s.id === editingId);
+        if (idx !== -1) allSwimmers[idx] = updated;
+        renderTable();
+        document.getElementById('editModal').classList.remove('active');
+        showAlert('alertBox', '修改成功', 'success');
+        editingId = null;
+      } catch (err) {
+        showAlert('alertBox', '修改失败: ' + err.message, 'error');
+      }
+    });
+
+    // 切换状态
+    async function toggleStatus(id) {
+      const swimmer = allSwimmers.find(s => s.id === id);
+      if (!swimmer) return;
+      const newStatus = swimmer.status === 'active' ? 'inactive' : 'active';
+      try {
+        const updated = await updateSwimmer(id, { status: newStatus });
+        const idx = allSwimmers.findIndex(s => s.id === id);
+        if (idx !== -1) allSwimmers[idx] = updated;
+        renderTable();
+        showAlert('alertBox', `状态已切换为: ${newStatus === 'active' ? '活跃' : '停用'}`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '切换失败: ' + err.message, 'error');
+      }
+    }
+  </script>
+</body>
+</html>

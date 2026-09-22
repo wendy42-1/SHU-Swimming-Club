@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>项目管理 - 鼠智赛事通</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">项目管理</h1>
+
+    <div class="local-storage-notice">
+      <strong>提示</strong>
+      新增和修改的项目数据保存在浏览器 localStorage 中，刷新后保留，但其他设备不可见。
+    </div>
+
+    <div id="accessDenied" style="display:none;">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <p>仅超级管理员可访问此页面</p>
+      </div>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div id="alertBox"></div>
+
+      <!-- 新增项目表单 -->
+      <div class="card">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">新增项目</h2>
+        <form id="addForm">
+          <div class="form-group">
+            <label for="eventName">项目名称 *</label>
+            <input type="text" id="eventName" placeholder="例如：50米自由泳" required>
+          </div>
+          <div class="form-group">
+            <label for="eventDistance">距离（米）*</label>
+            <input type="number" id="eventDistance" placeholder="例如：50" min="1" required>
+          </div>
+          <div class="form-group">
+            <label for="eventStroke">泳姿 *</label>
+            <select id="eventStroke" required>
+              <option value="freestyle">自由泳</option>
+              <option value="breaststroke">蛙泳</option>
+              <option value="backstroke">仰泳</option>
+              <option value="butterfly">蝶泳</option>
+              <option value="medley">混合泳</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="eventGender">性别 *</label>
+            <select id="eventGender" required>
+              <option value="male">男子</option>
+              <option value="female">女子</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="eventType">类型</label>
+            <select id="eventType">
+              <option value="individual">个人</option>
+              <option value="relay">接力</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="eventStatus">状态</label>
+            <select id="eventStatus">
+              <option value="active">启用</option>
+              <option value="inactive">停用</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">新增项目</button>
+        </form>
+      </div>
+
+      <!-- 项目列表 -->
+      <div class="card" style="margin-top:16px;">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">项目列表</h2>
+        <div style="overflow-x:auto;">
+          <table class="data-table" id="eventTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>距离</th>
+                <th>泳姿</th>
+                <th>性别</th>
+                <th>类型</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="eventTableBody">
+              <tr><td colspan="8" style="text-align:center;">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑模态框 -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>编辑项目</h2>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>项目名称</label>
+          <input type="text" id="editName">
+        </div>
+        <div class="form-group">
+          <label>距离（米）</label>
+          <input type="number" id="editDistance" min="1">
+        </div>
+        <div class="form-group">
+          <label>泳姿</label>
+          <select id="editStroke">
+            <option value="freestyle">自由泳</option>
+            <option value="breaststroke">蛙泳</option>
+            <option value="backstroke">仰泳</option>
+            <option value="butterfly">蝶泳</option>
+            <option value="medley">混合泳</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>性别</label>
+          <select id="editGender">
+            <option value="male">男子</option>
+            <option value="female">女子</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>类型</label>
+          <select id="editType">
+            <option value="individual">个人</option>
+            <option value="relay">接力</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>状态</label>
+          <select id="editStatus">
+            <option value="active">启用</option>
+            <option value="inactive">停用</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="cancelEdit">取消</button>
+        <button class="btn btn-primary" id="saveEdit">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, showAlert, strokeName, genderName } from '../assets/js/app.js';
+    import { hasPermission } from '../src/services/authService.js';
+    import { getAllEvents } from '../src/services/eventService.js';
+    import { getAllResults } from '../src/services/resultService.js';
+    import { createEvent, updateEvent } from '../src/services/writeService.js';
+
+    initPage();
+
+    let allEvents = [];
+    let allResults = [];
+    let editingId = null;
+
+    if (!hasPermission('createEvent')) {
+      document.getElementById('accessDenied').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    } else {
+      document.getElementById('accessDenied').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      loadData();
+    }
+
+    async function loadData() {
+      try {
+        [allEvents, allResults] = await Promise.all([getAllEvents(), getAllResults()]);
+        renderTable();
+      } catch (err) {
+        showAlert('alertBox', '加载失败: ' + err.message, 'error');
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('eventTableBody');
+      if (allEvents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-secondary);">暂无项目</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = allEvents.map(e => {
+        const count = allResults.filter(r => r.eventId === e.id && r.status === 'official').length;
+        return `
+          <tr>
+            <td>${escapeHtml(e.id)}</td>
+            <td>${escapeHtml(e.name)}</td>
+            <td>${e.distance}m</td>
+            <td>${strokeName(e.stroke)}</td>
+            <td>${genderName(e.gender)}</td>
+            <td>${e.type === 'relay' ? '<span class="badge badge-relay">接力</span>' : '个人'}</td>
+            <td>${e.status === 'active' ? '<span class="badge badge-active">启用</span>' : '<span class="badge badge-inactive">停用</span>'}</td>
+            <td class="actions">
+              <button class="btn btn-outline btn-sm" data-id="${escapeHtml(e.id)}" data-action="edit">编辑</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+      });
+    }
+
+    // 新增项目
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('eventName').value.trim();
+      const distance = parseInt(document.getElementById('eventDistance').value, 10);
+      const stroke = document.getElementById('eventStroke').value;
+      const gender = document.getElementById('eventGender').value;
+      const type = document.getElementById('eventType').value;
+      const status = document.getElementById('eventStatus').value;
+
+      if (!name) { showAlert('alertBox', '项目名称不能为空', 'warning'); return; }
+      if (!distance || distance <= 0) { showAlert('alertBox', '距离必须大于0', 'warning'); return; }
+
+      try {
+        const newEvent = await createEvent({ name, distance, stroke, gender, type, status });
+        allEvents.push(newEvent);
+        renderTable();
+        document.getElementById('addForm').reset();
+        showAlert('alertBox', `新增成功: ${name} (ID: ${newEvent.id})`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '新增失败: ' + err.message, 'error');
+      }
+    });
+
+    // 编辑模态框
+    function openEditModal(id) {
+      const event = allEvents.find(e => e.id === id);
+      if (!event) return;
+      editingId = id;
+      document.getElementById('editName').value = event.name || '';
+      document.getElementById('editDistance').value = event.distance || '';
+      document.getElementById('editStroke').value = event.stroke || 'freestyle';
+      document.getElementById('editGender').value = event.gender || 'male';
+      document.getElementById('editType').value = event.type || 'individual';
+      document.getElementById('editStatus').value = event.status || 'active';
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('active');
+      editingId = null;
+    });
+    document.getElementById('cancelEdit').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('active');
+      editingId = null;
+    });
+
+    document.getElementById('saveEdit').addEventListener('click', async () => {
+      if (!editingId) return;
+      const updates = {
+        name: document.getElementById('editName').value.trim(),
+        distance: parseInt(document.getElementById('editDistance').value, 10),
+        stroke: document.getElementById('editStroke').value,
+        gender: document.getElementById('editGender').value,
+        type: document.getElementById('editType').value,
+        status: document.getElementById('editStatus').value
+      };
+      if (!updates.name) { showAlert('alertBox', '名称不能为空', 'warning'); return; }
+      try {
+        const updated = await updateEvent(editingId, updates);
+        const idx = allEvents.findIndex(e => e.id === editingId);
+        if (idx !== -1) allEvents[idx] = updated;
+        renderTable();
+        document.getElementById('editModal').classList.remove('active');
+        showAlert('alertBox', '修改成功', 'success');
+        editingId = null;
+      } catch (err) {
+        showAlert('alertBox', '修改失败: ' + err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

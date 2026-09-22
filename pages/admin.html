@@ -3,208 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>管理后台 - 游泳成绩管理系统</title>
+  <title>管理中心 - 鼠智赛事通</title>
   <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body>
   <div class="navbar" id="navbar"></div>
 
   <div class="container">
-    <h1 class="page-title">管理后台</h1>
+    <h1 class="page-title">管理中心</h1>
 
     <div class="security-notice">
       <strong>安全声明</strong>
-      当前版本的角色控制属于前端演示级权限，不能视为真正安全的生产级身份认证。管理员写入操作为演示级，刷新后不持久化。
+      当前版本的角色控制属于前端演示级权限，不能视为真正安全的生产级身份认证。管理员写入操作通过 localStorage 保存在当前浏览器，刷新后数据保留，但不同设备间不共享。
     </div>
 
     <div id="accessDenied" style="display:none;">
       <div class="empty-state">
         <div class="empty-state-icon">🔒</div>
-        <p>您当前角色无权访问管理后台</p>
+        <p>您当前角色无权访问管理中心</p>
         <p style="font-size:0.85rem;margin-top:8px;">请在右上角切换为管理员角色</p>
       </div>
     </div>
 
     <div id="adminPanel" style="display:none;">
-      <!-- 成绩录入 -->
-      <div class="card">
-        <h2 style="font-size:1.1rem;margin-bottom:12px;">成绩录入</h2>
-        <div id="alertBox"></div>
-        <form id="resultForm">
-          <div class="form-group">
-            <label for="formMeet">比赛</label>
-            <select id="formMeet" required>
-              <option value="">请选择比赛</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="formSwimmer">运动员</label>
-            <select id="formSwimmer" required>
-              <option value="">请选择运动员</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="formEvent">项目</label>
-            <select id="formEvent" required>
-              <option value="">请选择项目</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="formTime">成绩</label>
-            <input type="text" id="formTime" placeholder="例如 58.32 或 1:02.35" required>
-          </div>
-          <button type="submit" class="btn btn-primary btn-block">提交成绩</button>
-        </form>
+      <!-- 成绩管理区 -->
+      <h2 class="section-title">成绩管理</h2>
+      <div class="admin-cards">
+        <a href="admin-results-add.html" class="admin-card">
+          <div class="admin-card-icon">✏</div>
+          <div class="admin-card-title">成绩录入</div>
+          <div class="admin-card-desc">录入比赛成绩</div>
+        </a>
+        <a href="admin-results-edit.html" class="admin-card">
+          <div class="admin-card-icon">📋</div>
+          <div class="admin-card-title">成绩记录</div>
+          <div class="admin-card-desc">查看/修改/标记成绩</div>
+        </a>
       </div>
 
-      <!-- 最近提交的成绩记录（演示级，仅当前会话） -->
-      <div class="card">
-        <h2 style="font-size:1.1rem;margin-bottom:12px;">本会话提交记录</h2>
-        <ul class="result-list" id="sessionResults">
-          <li class="empty-state" style="padding:16px;">暂无提交记录</li>
-        </ul>
-      </div>
-
-      <!-- SUPER_ADMIN 额外功能 -->
-      <div class="card super-admin-only">
-        <h2 style="font-size:1.1rem;margin-bottom:12px;">系统管理（超级管理员）</h2>
-        <div class="home-grid">
-          <a href="swimmers.html" class="home-card">
-            <div class="home-card-icon">persons</div>
-            <div class="home-card-title">运动员管理</div>
+      <!-- SUPER_ADMIN 专属区 -->
+      <div class="super-admin-only">
+        <h2 class="section-title" style="margin-top:24px;">数据管理（超级管理员）</h2>
+        <div class="admin-cards">
+          <a href="admin-swimmers.html" class="admin-card">
+            <div class="admin-card-icon">👥</div>
+            <div class="admin-card-title">运动员管理</div>
+            <div class="admin-card-desc">新增/编辑运动员</div>
           </a>
-          <a href="meets.html" class="home-card">
-            <div class="home-card-icon">📅</div>
-            <div class="home-card-title">比赛管理</div>
+          <a href="admin-meets.html" class="admin-card">
+            <div class="admin-card-icon">📅</div>
+            <div class="admin-card-title">比赛管理</div>
+            <div class="admin-card-desc">新增/编辑比赛</div>
           </a>
-          <a href="events.html" class="home-card">
-            <div class="home-card-icon">🏊</div>
-            <div class="home-card-title">项目管理</div>
+          <a href="admin-events.html" class="admin-card">
+            <div class="admin-card-icon">🏊</div>
+            <div class="admin-card-title">项目管理</div>
+            <div class="admin-card-desc">新增/编辑游泳项目</div>
           </a>
         </div>
-        <p style="margin-top:12px;font-size:0.8rem;color:var(--text-secondary);">
-          当前版本仅提供链接入口，管理功能将在后续版本实现。
-        </p>
+      </div>
+
+      <!-- localStorage 状态区 -->
+      <div class="local-storage-notice" style="margin-top:24px;">
+        <strong>localStorage 状态</strong>
+        <span id="lsStatus">检查中...</span>
       </div>
     </div>
   </div>
 
   <script type="module">
-    import { initPage, escapeHtml, showAlert, formatDate } from '../assets/js/app.js';
-    import { getCurrentRole, isAdmin, getRoleDisplayName, hasPermission } from '../src/services/authService.js';
-    import { getAllMeets } from '../src/services/meetService.js';
-    import { getAllSwimmers } from '../src/services/swimmerService.js';
-    import { getAllEvents } from '../src/services/eventService.js';
-    import { getAllResults } from '../src/services/resultService.js';
-    import { parseTime, formatTime } from '../src/utils/time.js';
+    import { initPage } from '../assets/js/app.js';
+    import { isAdmin } from '../src/services/authService.js';
+    import { hasLocalOverrides, clearLocalOverrides, exportLocalData } from '../src/services/writeService.js';
 
     initPage();
 
-    const sessionResults = [];
-
-    async function init() {
-      if (!isAdmin()) {
-        document.getElementById('accessDenied').style.display = 'block';
-        document.getElementById('adminPanel').style.display = 'none';
-        return;
-      }
-
+    if (!isAdmin()) {
+      document.getElementById('accessDenied').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    } else {
       document.getElementById('accessDenied').style.display = 'none';
       document.getElementById('adminPanel').style.display = 'block';
 
-      try {
-        const [meets, swimmers, events] = await Promise.all([
-          getAllMeets(),
-          getAllSwimmers(),
-          getAllEvents()
-        ]);
+      // 显示 localStorage 状态
+      const overrides = hasLocalOverrides();
+      const overrideList = Object.entries(overrides)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
 
-        const meetSel = document.getElementById('formMeet');
-        meets.forEach(m => {
-          const opt = document.createElement('option');
-          opt.value = m.id;
-          opt.textContent = `${m.name} (${formatDate(m.date)})`;
-          meetSel.appendChild(opt);
-        });
-
-        const swimmerSel = document.getElementById('formSwimmer');
-        swimmers.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s.id;
-          opt.textContent = `${s.name} (${s.gender === 'male' ? '男' : '女'})`;
-          swimmerSel.appendChild(opt);
-        });
-
-        const eventSel = document.getElementById('formEvent');
-        events.forEach(e => {
-          const opt = document.createElement('option');
-          opt.value = e.id;
-          opt.textContent = `${e.name} (${e.gender === 'male' ? '男' : '女'})`;
-          eventSel.appendChild(opt);
-        });
-      } catch (err) {
-        showAlert('alertBox', '数据加载失败: ' + err.message, 'error');
+      const statusEl = document.getElementById('lsStatus');
+      if (overrideList.length > 0) {
+        statusEl.innerHTML = `已有本地修改数据: ${overrideList.join(', ')}。<br>这些数据仅保存在当前浏览器中，其他设备不可见。`;
+      } else {
+        statusEl.textContent = '当前无本地修改数据，所有数据来自 JSON 文件。';
       }
     }
-
-    document.getElementById('resultForm').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const meetId = document.getElementById('formMeet').value;
-      const swimmerId = document.getElementById('formSwimmer').value;
-      const eventId = document.getElementById('formEvent').value;
-      const timeInput = document.getElementById('formTime').value;
-
-      if (!meetId || !swimmerId || !eventId) {
-        showAlert('alertBox', '请填写所有必填项', 'warning');
-        return;
-      }
-
-      let timeMs;
-      try {
-        timeMs = parseTime(timeInput);
-      } catch (err) {
-        showAlert('alertBox', err.message, 'error');
-        return;
-      }
-
-      const newResult = {
-        id: 'R' + String(Date.now()).slice(-6),
-        swimmerId,
-        eventId,
-        meetId,
-        timeMs,
-        status: 'official',
-        createdAt: new Date().toISOString(),
-        createdBy: getRoleDisplayName(getCurrentRole())
-      };
-
-      sessionResults.unshift(newResult);
-      renderSessionResults();
-
-      document.getElementById('formTime').value = '';
-      showAlert('alertBox', `成绩提交成功: ${formatTime(timeMs)}`, 'success');
-    });
-
-    function renderSessionResults() {
-      const list = document.getElementById('sessionResults');
-      if (sessionResults.length === 0) {
-        list.innerHTML = '<li class="empty-state" style="padding:16px;">暂无提交记录</li>';
-        return;
-      }
-      list.innerHTML = sessionResults.map(r => {
-        return `
-          <li class="result-item">
-            <div class="result-info">
-              <div class="result-name">${escapeHtml(r.createdBy)} 提交</div>
-              <div class="result-detail">${escapeHtml(r.swimmerId)} · ${escapeHtml(r.eventId)} · ${escapeHtml(r.meetId)} · ${formatDate(r.createdAt)}</div>
-            </div>
-            <div class="result-time">${formatTime(r.timeMs)}</div>
-          </li>
-        `;
-      }).join('');
-    }
-
-    init();
   </script>
 </body>
 </html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>成绩录入 - 鼠智赛事通</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">成绩录入</h1>
+
+    <div class="local-storage-notice">
+      <strong>提示</strong>
+      录入的成绩保存在浏览器 localStorage 中，刷新后保留，但其他设备不可见。如需永久保存，请将数据导出并提交到 GitHub 仓库。
+    </div>
+
+    <div id="accessDenied" style="display:none;">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <p>仅成绩管理员和超级管理员可访问此页面</p>
+      </div>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div id="alertBox"></div>
+
+      <div class="card">
+        <form id="resultForm">
+          <div class="form-group">
+            <label for="formMeet">比赛 *</label>
+            <select id="formMeet" required>
+              <option value="">请选择比赛</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="formEvent">项目 *</label>
+            <select id="formEvent" required>
+              <option value="">请选择项目</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="formSwimmer">运动员 *</label>
+            <select id="formSwimmer" required>
+              <option value="">请选择运动员</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="formTime">成绩 *</label>
+            <input type="text" id="formTime" placeholder="例如 58.32 或 1:02.35" required>
+          </div>
+          <div class="form-group">
+            <label for="formStatus">成绩状态</label>
+            <select id="formStatus">
+              <option value="official">正式成绩</option>
+              <option value="unofficial">非正式</option>
+              <option value="DQ">取消资格 (DQ)</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">提交成绩</button>
+        </form>
+      </div>
+
+      <!-- 最近录入的成绩 -->
+      <div class="card" style="margin-top:16px;">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">最近录入</h2>
+        <ul class="result-list" id="recentResults">
+          <li class="empty-state" style="padding:16px;">暂无录入记录</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, showAlert, formatDate, genderName } from '../assets/js/app.js';
+    import { hasPermission, getCurrentRole, getRoleDisplayName } from '../src/services/authService.js';
+    import { getAllMeets } from '../src/services/meetService.js';
+    import { getAllSwimmers } from '../src/services/swimmerService.js';
+    import { getAllEvents } from '../src/services/eventService.js';
+    import { getAllResults } from '../src/services/resultService.js';
+    import { createResult } from '../src/services/writeService.js';
+    import { parseTime, formatTime } from '../src/utils/time.js';
+
+    initPage();
+
+    let meetNames = {}, eventNames = {}, swimmerNames = {};
+    let recentResults = [];
+
+    if (!hasPermission('addResult')) {
+      document.getElementById('accessDenied').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    } else {
+      document.getElementById('accessDenied').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      init();
+    }
+
+    async function init() {
+      try {
+        const [meets, swimmers, events, results] = await Promise.all([
+          getAllMeets(),
+          getAllSwimmers(),
+          getAllEvents(),
+          getAllResults()
+        ]);
+
+        meetNames = {};
+        meets.forEach(m => meetNames[m.id] = m.name);
+        eventNames = {};
+        events.forEach(e => eventNames[e.id] = e.name);
+        swimmerNames = {};
+        swimmers.forEach(s => swimmerNames[s.id] = s.name);
+
+        // 填充下拉选项
+        const meetSel = document.getElementById('formMeet');
+        meets.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = `${m.name} (${formatDate(m.date)})`;
+          meetSel.appendChild(opt);
+        });
+
+        const eventSel = document.getElementById('formEvent');
+        events.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          opt.textContent = `${e.name} (${genderName(e.gender)})`;
+          eventSel.appendChild(opt);
+        });
+
+        const swimmerSel = document.getElementById('formSwimmer');
+        swimmers.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = `${s.name} (${genderName(s.gender)})`;
+          swimmerSel.appendChild(opt);
+        });
+
+        // 显示最近10条成绩
+        recentResults = [...results].sort((a, b) =>
+          new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+        ).slice(0, 10);
+        renderRecent();
+      } catch (err) {
+        showAlert('alertBox', '数据加载失败: ' + err.message, 'error');
+      }
+    }
+
+    document.getElementById('resultForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const meetId = document.getElementById('formMeet').value;
+      const eventId = document.getElementById('formEvent').value;
+      const swimmerId = document.getElementById('formSwimmer').value;
+      const timeInput = document.getElementById('formTime').value;
+      const status = document.getElementById('formStatus').value;
+
+      if (!meetId || !eventId || !swimmerId) {
+        showAlert('alertBox', '请填写所有必填项', 'warning');
+        return;
+      }
+
+      let timeMs;
+      try {
+        timeMs = parseTime(timeInput);
+      } catch (err) {
+        showAlert('alertBox', err.message, 'error');
+        return;
+      }
+
+      try {
+        const newResult = await createResult({ swimmerId, eventId, meetId, timeMs, status });
+        recentResults.unshift(newResult);
+        renderRecent();
+        document.getElementById('formTime').value = '';
+        showAlert('alertBox', `成绩录入成功: ${formatTime(timeMs)}`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '录入失败: ' + err.message, 'error');
+      }
+    });
+
+    function renderRecent() {
+      const list = document.getElementById('recentResults');
+      if (recentResults.length === 0) {
+        list.innerHTML = '<li class="empty-state" style="padding:16px;">暂无录入记录</li>';
+        return;
+      }
+      list.innerHTML = recentResults.map(r => `
+        <li class="result-item">
+          <div class="result-info">
+            <div class="result-name">${escapeHtml(swimmerNames[r.swimmerId] || r.swimmerId)}</div>
+            <div class="result-detail">
+              ${escapeHtml(eventNames[r.eventId] || r.eventId)} · ${escapeHtml(meetNames[r.meetId] || r.meetId)} · ${formatDate(r.createdAt)}
+              ${r.status !== 'official' ? `<span class="badge badge-inactive">${r.status}</span>` : ''}
+            </div>
+          </div>
+          <div class="result-time">${formatTime(r.timeMs)}</div>
+        </li>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

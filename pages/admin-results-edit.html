@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>成绩记录 - 鼠智赛事通</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">成绩记录</h1>
+
+    <div class="local-storage-notice">
+      <strong>提示</strong>
+      修改的成绩保存在浏览器 localStorage 中。建议使用软删除（标记为 DQ）而非直接删除。
+    </div>
+
+    <div id="accessDenied" style="display:none;">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <p>仅成绩管理员和超级管理员可访问此页面</p>
+      </div>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div id="alertBox"></div>
+
+      <!-- 筛选栏 -->
+      <div class="filter-bar">
+        <select id="filterMeet">
+          <option value="">全部比赛</option>
+        </select>
+        <select id="filterEvent">
+          <option value="">全部项目</option>
+        </select>
+        <select id="filterSwimmer">
+          <option value="">全部运动员</option>
+        </select>
+        <select id="filterStatus">
+          <option value="">全部状态</option>
+          <option value="official">正式</option>
+          <option value="unofficial">非正式</option>
+          <option value="DQ">DQ</option>
+        </select>
+      </div>
+
+      <!-- 搜索框 -->
+      <input type="text" id="searchInput" class="search-box" placeholder="搜索运动员姓名...">
+
+      <!-- 成绩表格 -->
+      <div class="card">
+        <div style="overflow-x:auto;">
+          <table class="data-table" id="resultTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>运动员</th>
+                <th>项目</th>
+                <th>比赛</th>
+                <th>成绩</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="resultTableBody">
+              <tr><td colspan="7" style="text-align:center;">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑成绩模态框 -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>修改成绩</h2>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>运动员</label>
+          <input type="text" id="editSwimmerName" disabled style="background:var(--bg);">
+        </div>
+        <div class="form-group">
+          <label>项目</label>
+          <input type="text" id="editEventName" disabled style="background:var(--bg);">
+        </div>
+        <div class="form-group">
+          <label>比赛</label>
+          <input type="text" id="editMeetName" disabled style="background:var(--bg);">
+        </div>
+        <div class="form-group">
+          <label>成绩 *</label>
+          <input type="text" id="editTime" placeholder="例如 58.32 或 1:02.35">
+        </div>
+        <div class="form-group">
+          <label>状态</label>
+          <select id="editStatus">
+            <option value="official">正式成绩</option>
+            <option value="unofficial">非正式</option>
+            <option value="DQ">取消资格 (DQ)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>修改原因</label>
+          <input type="text" id="editReason" placeholder="请填写修改原因（可选）">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="cancelEdit">取消</button>
+        <button class="btn btn-primary" id="saveEdit">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, showAlert, formatDate, genderName } from '../assets/js/app.js';
+    import { hasPermission } from '../src/services/authService.js';
+    import { getAllMeets } from '../src/services/meetService.js';
+    import { getAllSwimmers } from '../src/services/swimmerService.js';
+    import { getAllEvents } from '../src/services/eventService.js';
+    import { getAllResults } from '../src/services/resultService.js';
+    import { updateResult, softDeleteResult } from '../src/services/writeService.js';
+    import { parseTime, formatTime } from '../src/utils/time.js';
+
+    initPage();
+
+    let allResults = [];
+    let meetNames = {}, eventNames = {}, swimmerNames = {};
+    let allMeets = [], allEvents = [], allSwimmers = [];
+    let editingId = null;
+
+    if (!hasPermission('editResult')) {
+      document.getElementById('accessDenied').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    } else {
+      document.getElementById('accessDenied').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      init();
+    }
+
+    async function init() {
+      try {
+        [allResults, allMeets, allEvents, allSwimmers] = await Promise.all([
+          getAllResults(),
+          getAllMeets(),
+          getAllEvents(),
+          getAllSwimmers()
+        ]);
+
+        meetNames = {};
+        allMeets.forEach(m => meetNames[m.id] = m.name);
+        eventNames = {};
+        allEvents.forEach(e => eventNames[e.id] = e.name);
+        swimmerNames = {};
+        allSwimmers.forEach(s => swimmerNames[s.id] = s.name);
+
+        // 填充筛选器
+        const meetSel = document.getElementById('filterMeet');
+        allMeets.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name;
+          meetSel.appendChild(opt);
+        });
+
+        const eventSel = document.getElementById('filterEvent');
+        allEvents.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          opt.textContent = `${e.name} (${genderName(e.gender)})`;
+          eventSel.appendChild(opt);
+        });
+
+        const swimmerSel = document.getElementById('filterSwimmer');
+        allSwimmers.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.name;
+          swimmerSel.appendChild(opt);
+        });
+
+        renderTable();
+      } catch (err) {
+        showAlert('alertBox', '加载失败: ' + err.message, 'error');
+      }
+    }
+
+    function renderTable() {
+      const meetId = document.getElementById('filterMeet').value;
+      const eventId = document.getElementById('filterEvent').value;
+      const swimmerId = document.getElementById('filterSwimmer').value;
+      const status = document.getElementById('filterStatus').value;
+      const search = document.getElementById('searchInput').value.toLowerCase();
+
+      let filtered = allResults;
+      if (meetId) filtered = filtered.filter(r => r.meetId === meetId);
+      if (eventId) filtered = filtered.filter(r => r.eventId === eventId);
+      if (swimmerId) filtered = filtered.filter(r => r.swimmerId === swimmerId);
+      if (status) filtered = filtered.filter(r => r.status === status);
+      if (search) {
+        filtered = filtered.filter(r => {
+          const name = swimmerNames[r.swimmerId] || '';
+          return name.toLowerCase().includes(search);
+        });
+      }
+
+      const tbody = document.getElementById('resultTableBody');
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">暂无成绩记录</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(r => {
+        const statusBadge = r.status === 'official'
+          ? '<span class="badge badge-active">正式</span>'
+          : r.status === 'DQ'
+            ? '<span class="badge badge-inactive">DQ</span>'
+            : '<span class="badge badge-relay">非正式</span>';
+        return `
+          <tr>
+            <td>${escapeHtml(r.id)}</td>
+            <td>${escapeHtml(swimmerNames[r.swimmerId] || r.swimmerId)}</td>
+            <td>${escapeHtml(eventNames[r.eventId] || r.eventId)}</td>
+            <td>${escapeHtml(meetNames[r.meetId] || r.meetId)}</td>
+            <td style="font-weight:700;color:var(--accent);">${formatTime(r.timeMs)}</td>
+            <td>${statusBadge}</td>
+            <td class="actions">
+              <button class="btn btn-outline btn-sm" data-id="${escapeHtml(r.id)}" data-action="edit">编辑</button>
+              ${r.status !== 'DQ' ? `<button class="btn btn-danger btn-sm" data-id="${escapeHtml(r.id)}" data-action="dq">标记DQ</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+      });
+      tbody.querySelectorAll('[data-action="dq"]').forEach(btn => {
+        btn.addEventListener('click', () => markDQ(btn.dataset.id));
+      });
+    }
+
+    ['filterMeet', 'filterEvent', 'filterSwimmer', 'filterStatus'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderTable);
+    });
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+
+    // 编辑模态框
+    function openEditModal(id) {
+      const result = allResults.find(r => r.id === id);
+      if (!result) return;
+      editingId = id;
+      document.getElementById('editSwimmerName').value = swimmerNames[result.swimmerId] || result.swimmerId;
+      document.getElementById('editEventName').value = eventNames[result.eventId] || result.eventId;
+      document.getElementById('editMeetName').value = meetNames[result.meetId] || result.meetId;
+      document.getElementById('editTime').value = formatTime(result.timeMs);
+      document.getElementById('editStatus').value = result.status || 'official';
+      document.getElementById('editReason').value = '';
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('active');
+      editingId = null;
+    });
+    document.getElementById('cancelEdit').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('active');
+      editingId = null;
+    });
+
+    document.getElementById('saveEdit').addEventListener('click', async () => {
+      if (!editingId) return;
+      const timeInput = document.getElementById('editTime').value;
+      const status = document.getElementById('editStatus').value;
+      const reason = document.getElementById('editReason').value.trim();
+
+      let timeMs;
+      try {
+        timeMs = parseTime(timeInput);
+      } catch (err) {
+        showAlert('alertBox', err.message, 'error');
+        return;
+      }
+
+      try {
+        const updated = await updateResult(editingId, { timeMs, status, updateReason: reason });
+        const idx = allResults.findIndex(r => r.id === editingId);
+        if (idx !== -1) allResults[idx] = updated;
+        renderTable();
+        document.getElementById('editModal').classList.remove('active');
+        showAlert('alertBox', '修改成功', 'success');
+        editingId = null;
+      } catch (err) {
+        showAlert('alertBox', '修改失败: ' + err.message, 'error');
+      }
+    });
+
+    // 标记 DQ
+    async function markDQ(id) {
+      if (!confirm('确定将此成绩标记为 DQ（取消资格）？')) return;
+      try {
+        const updated = await softDeleteResult(id, '成绩标记为 DQ');
+        const idx = allResults.findIndex(r => r.id === id);
+        if (idx !== -1) allResults[idx] = updated;
+        renderTable();
+        showAlert('alertBox', '已标记为 DQ', 'success');
+      } catch (err) {
+        showAlert('alertBox', '操作失败: ' + err.message, 'error');
+      }
+    }
+  </script>
+</body>
+</html>

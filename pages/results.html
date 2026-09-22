@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>成绩查询 - 游泳成绩管理系统</title>
+  <title>成绩查询 - 鼠智赛事通</title>
   <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body>
@@ -11,6 +11,11 @@
 
   <div class="container">
     <h1 class="page-title">成绩查询</h1>
+
+    <div class="admin-only" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+      <a href="admin-results-add.html" class="btn btn-primary" style="font-size:0.85rem;padding:8px 16px;">录入成绩</a>
+      <a href="admin-results-edit.html" class="btn btn-outline" style="font-size:0.85rem;padding:8px 16px;">管理成绩</a>
+    </div>
 
     <div class="filter-bar">
       <select id="filterMeet">

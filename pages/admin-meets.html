@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>比赛管理 - 鼠智赛事通</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">比赛管理</h1>
+
+    <div class="local-storage-notice">
+      <strong>提示</strong>
+      新增和修改的比赛数据保存在浏览器 localStorage 中，刷新后保留，但其他设备不可见。
+    </div>
+
+    <div id="accessDenied" style="display:none;">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <p>仅超级管理员可访问此页面</p>
+      </div>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div id="alertBox"></div>
+
+      <!-- 新增比赛表单 -->
+      <div class="card">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">新增比赛</h2>
+        <form id="addForm">
+          <div class="form-group">
+            <label for="meetName">比赛名称 *</label>
+            <input type="text" id="meetName" placeholder="例如：2026年校运会游泳比赛" required>
+          </div>
+          <div class="form-group">
+            <label for="meetDate">比赛日期 *</label>
+            <input type="date" id="meetDate" required>
+          </div>
+          <div class="form-group">
+            <label for="meetLocation">比赛地点</label>
+            <input type="text" id="meetLocation" placeholder="例如：上海大学游泳馆">
+          </div>
+          <div class="form-group">
+            <label for="meetStatus">比赛状态</label>
+            <select id="meetStatus">
+              <option value="scheduled">计划中</option>
+              <option value="active">进行中</option>
+              <option value="completed">已结束</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">新增比赛</button>
+        </form>
+      </div>
+
+      <!-- 比赛列表 -->
+      <div class="card" style="margin-top:16px;">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">比赛列表</h2>
+        <div style="overflow-x:auto;">
+          <table class="data-table" id="meetTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>日期</th>
+                <th>地点</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="meetTableBody">
+              <tr><td colspan="6" style="text-align:center;">加载中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑模态框 -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>编辑比赛</h2>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>比赛名称</label>
+          <input type="text" id="editName">
+        </div>
+        <div class="form-group">
+          <label>比赛日期</label>
+          <input type="date" id="editDate">
+        </div>
+        <div class="form-group">
+          <label>比赛地点</label>
+          <input type="text" id="editLocation">
+        </div>
+        <div class="form-group">
+          <label>比赛状态</label>
+          <select id="editStatus">
+            <option value="scheduled">计划中</option>
+            <option value="active">进行中</option>
+            <option value="completed">已结束</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="cancelEdit">取消</button>
+        <button class="btn btn-primary" id="saveEdit">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, showAlert, formatDate } from '../assets/js/app.js';
+    import { hasPermission } from '../src/services/authService.js';
+    import { getAllMeets } from '../src/services/meetService.js';
+    import { getAllResults } from '../src/services/resultService.js';
+    import { createMeet, updateMeet } from '../src/services/writeService.js';
+
+    initPage();
+
+    let allMeets = [];
+    let allResults = [];
+    let editingId = null;
+
+    if (!hasPermission('createMeet')) {
+      document.getElementById('accessDenied').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    } else {
+      document.getElementById('accessDenied').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      loadData();
+    }
+
+    async function loadData() {
+      try {
+        [allMeets, allResults] = await Promise.all([getAllMeets(), getAllResults()]);
+        renderTable();
+      } catch (err) {
+        showAlert('alertBox', '加载失败: ' + err.message, 'error');
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('meetTableBody');
+      if (allMeets.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);">暂无比赛</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = allMeets.map(m => {
+        const count = allResults.filter(r => r.meetId === m.id && r.status === 'official').length;
+        const statusBadge = m.status === 'completed'
+          ? '<span class="badge badge-inactive">已结束</span>'
+          : m.status === 'active'
+            ? '<span class="badge badge-active">进行中</span>'
+            : '<span class="badge badge-relay">计划中</span>';
+        return `
+          <tr>
+            <td>${escapeHtml(m.id)}</td>
+            <td>${escapeHtml(m.name)}</td>
+            <td>${formatDate(m.date)}</td>
+            <td>${escapeHtml(m.location || '')}</td>
+            <td>${statusBadge} <span style="font-size:0.75rem;color:var(--text-secondary);">(${count}项)</span></td>
+            <td class="actions">
+              <button class="btn btn-outline btn-sm" data-id="${escapeHtml(m.id)}" data-action="edit">编辑</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+      });
+    }
+
+    // 新增比赛
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('meetName').value.trim();
+      const date = document.getElementById('meetDate').value;
+      const location = document.getElementById('meetLocation').value.trim();
+      const status = document.getElementById('meetStatus').value;
+
+      if (!name) { showAlert('alertBox', '比赛名称不能为空', 'warning'); return; }
+      if (!date) { showAlert('alertBox', '比赛日期不能为空', 'warning'); return; }
+
+      try {
+        const newMeet = await createMeet({ name, date, location, status });
+        allMeets.push(newMeet);
+        renderTable();
+        document.getElementById('addForm').reset();
+        showAlert('alertBox', `新增成功: ${name} (ID: ${newMeet.id})`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '新增失败: ' + err.message, 'error');
+      }
+    });
+
+    // 编辑模态框
+    function openEditModal(id) {
+      const meet = allMeets.find(m => m.id === id);
+      if (!meet) return;
+      editingId = id;
+      document.getElementById('editName').value = meet.name || '';
+      document.getElementById('editDate').value = meet.date || '';
+      document.getElementById('editLocation').value = meet.location || '';
+      document.getElementById('editStatus').value = meet.status || 'scheduled';
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    document.getElementById('closeModal').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('active');
+      editingId = null;
+    });
+    document.getElementById('cancelEdit').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('active');
+      editingId = null;
+    });
+
+    document.getElementById('saveEdit').addEventListener('click', async () => {
+      if (!editingId) return;
+      const updates = {
+        name: document.getElementById('editName').value.trim(),
+        date: document.getElementById('editDate').value,
+        location: document.getElementById('editLocation').value.trim(),
+        status: document.getElementById('editStatus').value
+      };
+      if (!updates.name) { showAlert('alertBox', '名称不能为空', 'warning'); return; }
+      try {
+        const updated = await updateMeet(editingId, updates);
+        const idx = allMeets.findIndex(m => m.id === editingId);
+        if (idx !== -1) allMeets[idx] = updated;
+        renderTable();
+        document.getElementById('editModal').classList.remove('active');
+        showAlert('alertBox', '修改成功', 'success');
+        editingId = null;
+      } catch (err) {
+        showAlert('alertBox', '修改失败: ' + err.message, 'error');
+      }
+    });
+  </script>
+</body>
+</html>
