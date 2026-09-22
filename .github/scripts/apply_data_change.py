@@ -86,25 +86,92 @@ def extract_json_from_body(body):
     if match:
         return json.loads(match.group(1))
 
-    # 尝试从 HTML 注释中提取
-    match = re.search(r'<!--\s*(\{.*?"type"\s*:\s*"data-sync".*?\})\s*-->', body, re.DOTALL)
+    # 尝试从 HTML 注释中提取（支持 data-sync 和 batch 两种类型）
+    match = re.search(r'<!--\s*(\{.*?"type"\s*:\s*"(?:data-sync|batch)".*?\})\s*-->', body, re.DOTALL)
     if match:
         return json.loads(match.group(1))
 
     # 尝试直接解析整个 body
     try:
         data = json.loads(body.strip())
-        if data.get('type') == 'data-sync':
+        if data.get('type') in ('data-sync', 'batch'):
             return data
     except json.JSONDecodeError:
         pass
 
-    # 尝试查找包含 "type":"data-sync" 的 JSON 片段
-    match = re.search(r'(\{[^{}]*"type"\s*:\s*"data-sync"[^{}]*\})', body, re.DOTALL)
+    # 尝试查找包含 "type":"data-sync" 或 "type":"batch" 的 JSON 片段
+    match = re.search(r'(\{[^{}]*"type"\s*:\s*"(?:data-sync|batch)"[^{}]*\})', body, re.DOTALL)
     if match:
         return json.loads(match.group(1))
 
     raise ValueError("无法从 Issue body 中解析数据同步 JSON")
+
+# ============================================
+# 批量操作支持
+# ============================================
+
+def apply_batch_change(change):
+    """处理批量操作请求。
+
+    一个 batch Issue 包含多个操作，必须全部成功或全部不提交。
+    """
+    operations = change.get('operations', [])
+    if not operations:
+        raise ValueError('批量操作列表为空')
+
+    batch_id = change.get('batchId', 'unknown')
+    operator = change.get('operator', 'admin')
+    print(f"  Batch ID: {batch_id}")
+    print(f"  Operations count: {len(operations)}")
+
+    # 按实体分组加载数据，避免重复加载同一文件
+    loaded_data = {}  # entity -> data_list
+    loaded_results = None  # meet 删除时需要 results 列表
+
+    for i, op in enumerate(operations):
+        entity = op.get('entity')
+        action = op.get('action')
+        if entity not in DATA_FILES:
+            raise ValueError(f'操作 #{i+1}: 未知实体类型: {entity}')
+        if action not in ('create', 'update', 'softDelete', 'delete'):
+            raise ValueError(f'操作 #{i+1}: 未知操作: {action}')
+
+        # 按需加载数据文件（懒加载 + 缓存）
+        if entity not in loaded_data:
+            loaded_data[entity] = load_data(DATA_FILES[entity])
+            print(f"  Loaded {len(loaded_data[entity])} records from {DATA_FILES[entity]}")
+
+        # meet 的 delete 操作需要 results 列表
+        if entity == 'meet' and action == 'delete' and loaded_results is None:
+            loaded_results = load_data(DATA_FILES['result'])
+
+    # 逐个应用操作
+    # 如果任何一个操作失败，立即 raise ValueError → main() 中 exit(1) → 不 commit
+    for i, op in enumerate(operations):
+        entity = op.get('entity')
+        action = op.get('action')
+        # 注入 operator（如果操作本身没有指定）
+        if 'operator' not in op:
+            op['operator'] = operator
+
+        print(f"  --- Operation #{i+1}/{len(operations)}: {action} {entity} ---")
+
+        if entity == 'swimmer':
+            apply_swimmer_change(loaded_data['swimmer'], op)
+        elif entity == 'meet':
+            results_ref = loaded_results if loaded_results is not None else load_data(DATA_FILES['result'])
+            apply_meet_change(loaded_data['meet'], results_ref, op)
+        elif entity == 'event':
+            apply_event_change(loaded_data['event'], op)
+        elif entity == 'result':
+            apply_result_change(loaded_data['result'], op)
+
+    # 全部操作成功，保存所有被修改的文件
+    for entity, data_list in loaded_data.items():
+        save_data(DATA_FILES[entity], data_list)
+        print(f"  Saved {len(data_list)} records to {DATA_FILES[entity]}")
+
+    print(f"  Batch complete: {len(operations)} operations applied")
 
 # ============================================
 # 运动员变更
@@ -429,6 +496,24 @@ def main():
         print(f"ERROR: Failed to parse JSON: {e}")
         sys.exit(1)
 
+    # 判断是批量操作还是单操作
+    change_type = change.get('type')
+
+    if change_type == 'batch':
+        # 批量操作：多个 operation 在一个 Issue 中
+        print(f"  Type: batch")
+        try:
+            apply_batch_change(change)
+        except ValueError as e:
+            print(f"ERROR: {e}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"ERROR: 批量操作执行失败: {e}")
+            sys.exit(1)
+        print(f"=== Batch sync complete ===")
+        return
+
+    # 单操作模式（向后兼容）
     entity = change.get('entity')
     action = change.get('action')
 

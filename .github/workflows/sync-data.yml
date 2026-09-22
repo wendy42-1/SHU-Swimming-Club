@@ -6,7 +6,7 @@ on:
 
 jobs:
   sync:
-    if: contains(github.event.issue.body, '"type":"data-sync"')
+    if: contains(github.event.issue.body, '"type":"data-sync"') || contains(github.event.issue.body, '"type":"batch"')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -37,13 +37,38 @@ jobs:
             echo "OK: $f"
           done
 
-      - name: Commit and push
+      - name: Commit and push (with retry)
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/
-          git commit -m "data-sync: issue #${{ github.event.issue.number }}"
-          git push
+          
+          # Check if there are changes to commit
+          if git diff --cached --quiet; then
+            echo "No changes to commit (data already up to date)"
+            exit 0
+          fi
+          
+          git commit -m "data-sync: issue #${ISSUE_NUMBER}"
+          
+          # Push with retry: fetch latest, rebase, push
+          # Handles concurrent workflows that may have pushed between checkout and push
+          MAX_RETRIES=3
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Push attempt $i of $MAX_RETRIES..."
+            git pull --rebase origin main
+            if git push origin main; then
+              echo "Push succeeded on attempt $i"
+              exit 0
+            fi
+            echo "Push failed on attempt $i, retrying..."
+            sleep 5
+          done
+          
+          echo "ERROR: Push failed after $MAX_RETRIES attempts"
+          exit 1
 
       - name: Trigger Pages deployment
         if: success()
@@ -65,4 +90,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue close ${{ github.event.issue.number }} --comment "❌ 数据同步失败，请检查数据格式后重新提交。"
+          gh issue close ${{ github.event.issue.number }} --comment "❌ 数据同步失败，请检查数据格式后重新提交。本地修改不会丢失，可重新点击提交。"

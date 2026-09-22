@@ -168,7 +168,7 @@
     import { isAdmin } from '../src/services/authService.js';
     import { getAllEvents } from '../src/services/eventService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createEvent, updateEvent, getPendingSyncs, submitToGitHub } from '../src/services/writeService.js';
+    import { createEvent, updateEvent, getPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
     import { hasLocalOverrides } from '../src/services/syncService.js';
 
     initPage();
@@ -326,10 +326,10 @@
         showAlert('alertBox', '没有待同步的操作', 'info');
         return;
       }
-      pendingOps.forEach(op => submitToGitHub(op));
+      submitBatchToGitHub(pendingOps);
       pendingOps = [];
       updateSyncSection();
-      showAlert('alertBox', '已打开 GitHub Issue 页面，请逐个提交。', 'success');
+      showAlert('alertBox', '已打开 GitHub Issue 页面，请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。', 'success');
     });
   </script>
 </body>

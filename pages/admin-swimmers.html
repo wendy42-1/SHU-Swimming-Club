@@ -138,7 +138,7 @@
     import { isAdmin } from '../src/services/authService.js';
     import { getAllSwimmers } from '../src/services/swimmerService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createSwimmer, updateSwimmer, softDeleteSwimmer, hasSwimmerResults, getPendingSyncs, clearPendingSyncs, submitToGitHub } from '../src/services/writeService.js';
+    import { createSwimmer, updateSwimmer, softDeleteSwimmer, hasSwimmerResults, getPendingSyncs, clearPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
     import { hasLocalOverrides } from '../src/services/syncService.js';
 
     initPage();
@@ -361,13 +361,11 @@
         showAlert('alertBox', '没有待同步的操作', 'info');
         return;
       }
-      // 逐个生成 Issue URL 并打开
-      pendingOps.forEach(op => {
-        submitToGitHub(op);
-      });
+      // 批量提交：合并为 1 个 Issue，一次性同步
+      submitBatchToGitHub(pendingOps);
       pendingOps = [];
       updateSyncSection();
-      showAlert('alertBox', '已打开 GitHub Issue 页面，请逐个提交。提交后等待 Actions 自动同步（约30-60秒）。', 'success');
+      showAlert('alertBox', '已打开 GitHub Issue 页面，请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。', 'success');
     });
   </script>
 </body>

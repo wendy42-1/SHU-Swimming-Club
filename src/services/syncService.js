@@ -90,6 +90,39 @@ export function buildIssueUrl(payload) {
 }
 
 /**
+ * 生成批量操作的 GitHub Issue 创建 URL
+ * 将多个操作合并为一个 Issue，避免并发同步问题
+ * @param {Array} operations - 操作列表，每个元素格式同 buildIssueUrl 的 payload
+ * @param {string} operator - 操作者
+ * @returns {string} GitHub Issue URL
+ */
+export function buildBatchIssueUrl(operations, operator = 'admin') {
+  const batchId = `batch-${Date.now()}`;
+  const jsonStr = JSON.stringify({
+    type: 'batch',
+    batchId,
+    operator,
+    operations
+  });
+
+  // 用 HTML 注释包裹 JSON，避免 Issue body 被 Markdown 渲染干扰
+  const body = `<!-- ${jsonStr} -->`;
+
+  const summary = operations.length === 1
+    ? `${operations[0].action} ${operations[0].entity}${operations[0].id ? ' ' + operations[0].id : ''}`
+    : `${operations.length} 项操作`;
+
+  const title = `数据同步(批量): ${summary} [${batchId}]`;
+
+  const url = new URL(`https://github.com/${REPO_FULL}/issues/new`);
+  url.searchParams.set('title', title);
+  url.searchParams.set('body', body);
+  url.searchParams.set('labels', ISSUE_LABEL);
+
+  return url.toString();
+}
+
+/**
  * 获取当前 GitHub 仓库的最新 commit SHA（用于乐观锁检测）
  * 通过 GitHub API 获取 refs/heads/main 的 SHA
  * @returns {Promise<string|null>} commit SHA 或 null（匿名 API 限制 60次/小时）

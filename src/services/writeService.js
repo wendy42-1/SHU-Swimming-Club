@@ -15,7 +15,7 @@
  */
 
 import { fetchData, clearCache } from './dataService.js';
-import { buildIssueUrl, writeLocalOverride, readLocalOverride } from './syncService.js';
+import { buildIssueUrl, buildBatchIssueUrl, writeLocalOverride, readLocalOverride } from './syncService.js';
 import { isAdmin, getOperatorName } from './authService.js';
 
 const LS_PREFIX = 'swim_data_';
@@ -123,6 +123,23 @@ export function clearPendingSyncs() {
 export function submitToGitHub(payload) {
   const url = buildIssueUrl(payload);
   addPendingSync(payload);
+  window.open(url, '_blank');
+  return url;
+}
+
+/**
+ * 批量提交：将多个操作合并为一个 GitHub Issue
+ * 一次打开一个 Issue 页面，管理员只需提交一次
+ * Actions 一次性应用全部操作，保证原子性
+ * @param {Array} payloads - 操作列表
+ * @param {string} operator - 操作者
+ * @returns {string} Issue URL
+ */
+export function submitBatchToGitHub(payloads, operator) {
+  if (!payloads || payloads.length === 0) return '';
+  // 记录到 pending syncs
+  payloads.forEach(p => addPendingSync(p));
+  const url = buildBatchIssueUrl(payloads, operator || getOperator());
   window.open(url, '_blank');
   return url;
 }
