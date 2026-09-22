@@ -154,12 +154,15 @@
     "eventId": "E015",
     "meetId": "M001",
     "timeMs": 36800,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T09:52:05Z",
     "createdBy": "admin",
-    "updatedAt": null,
-    "updatedBy": null,
-    "updateReason": null
+    "updatedAt": "2026-09-22T10:28:20Z",
+    "updatedBy": "admin",
+    "updateReason": "清理端到端测试数据",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "RCHIKIXTV",
