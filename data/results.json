@@ -189,12 +189,15 @@
     "eventId": "E018",
     "meetId": "M001",
     "timeMs": 42600,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T09:53:46Z",
     "createdBy": "admin",
-    "updatedAt": null,
-    "updatedBy": null,
-    "updateReason": null
+    "updatedAt": "2026-09-22T10:30:47Z",
+    "updatedBy": "admin",
+    "updateReason": "清理端到端测试数据",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "RCHK9I2ZN",
