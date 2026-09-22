@@ -11,6 +11,7 @@ jobs:
     permissions:
       contents: write
       issues: write
+      actions: write
     concurrency:
       group: data-sync
       cancel-in-progress: false
@@ -43,6 +44,14 @@ jobs:
           git add data/
           git commit -m "data-sync: issue #${{ github.event.issue.number }}"
           git push
+
+      - name: Trigger Pages deployment
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy.yml --ref main
+          echo "已触发 Deploy to GitHub Pages 工作流"
 
       - name: Close issue (success)
         if: success()
