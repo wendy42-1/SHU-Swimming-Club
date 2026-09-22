@@ -1,10 +1,12 @@
 [
   {
     "id": "M001",
-    "name": "2026年校运会",
+    "name": "2026年招新测试",
     "date": "2026-10-01",
     "location": "上海大学",
-    "status": "active"
+    "status": "active",
+    "updatedAt": "2026-09-22T09:16:44Z",
+    "updatedBy": "admin"
   },
   {
     "id": "M002",
