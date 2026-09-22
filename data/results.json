@@ -141,12 +141,15 @@
     "eventId": "E017",
     "meetId": "M001",
     "timeMs": 35400,
-    "status": "official",
+    "status": "deleted",
     "createdAt": "2026-09-22T09:47:07Z",
     "createdBy": "admin",
-    "updatedAt": null,
-    "updatedBy": null,
-    "updateReason": null
+    "updatedAt": "2026-09-22T10:30:04Z",
+    "updatedBy": "admin",
+    "updateReason": "清理端到端测试数据",
+    "previousValues": {
+      "status": "official"
+    }
   },
   {
     "id": "RCHI0HK1K",
