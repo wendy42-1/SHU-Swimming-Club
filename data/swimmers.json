@@ -33,5 +33,14 @@
     "gender": "female",
     "group": "女子组",
     "status": "active"
+  },
+  {
+    "id": "SE2ETEST03",
+    "name": "E2E-Test-03",
+    "gender": "female",
+    "group": "Women",
+    "status": "active",
+    "createdAt": "2026-09-22T08:41:09Z",
+    "createdBy": "admin"
   }
 ]
