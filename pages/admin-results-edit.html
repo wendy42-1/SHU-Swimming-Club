@@ -14,13 +14,13 @@
 
     <div class="local-storage-notice">
       <strong>提示</strong>
-      修改的成绩保存在浏览器 localStorage 中。建议使用软删除（标记为 DQ）而非直接删除。
+      修改的成绩先保存在浏览器本地（即时显示），点击"提交到GitHub"按钮同步到 GitHub 后所有设备可见。
     </div>
 
     <div id="accessDenied" style="display:none;">
       <div class="empty-state">
         <div class="empty-state-icon">🔒</div>
-        <p>仅成绩管理员和超级管理员可访问此页面</p>
+        <p>请以管理员身份登录后访问此页面</p>
       </div>
     </div>
 
@@ -71,6 +71,14 @@
           </table>
         </div>
       </div>
+
+      <!-- 提交到 GitHub 区 -->
+      <div class="card" id="syncSection" style="margin-top:16px;display:none;">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">同步到 GitHub</h2>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">以下操作已保存到本地，点击"全部提交到GitHub"生成 Issue 链接。</p>
+        <div id="pendingList" style="margin-bottom:12px;"></div>
+        <button class="btn btn-primary" id="btnSubmitAll">全部提交到GitHub</button>
+      </div>
     </div>
   </div>
 
@@ -120,12 +128,13 @@
 
   <script type="module">
     import { initPage, escapeHtml, showAlert, formatDate, genderName } from '../assets/js/app.js';
-    import { hasPermission } from '../src/services/authService.js';
+    import { isAdmin } from '../src/services/authService.js';
     import { getAllMeets } from '../src/services/meetService.js';
     import { getAllSwimmers } from '../src/services/swimmerService.js';
     import { getAllEvents } from '../src/services/eventService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { updateResult, softDeleteResult, deleteResult } from '../src/services/writeService.js';
+    import { updateResult, softDeleteResult, deleteResult, getPendingSyncs, submitToGitHub } from '../src/services/writeService.js';
+    import { hasLocalOverrides } from '../src/services/syncService.js';
     import { parseTime, formatTime } from '../src/utils/time.js';
 
     initPage();
@@ -134,8 +143,9 @@
     let meetNames = {}, eventNames = {}, swimmerNames = {};
     let allMeets = [], allEvents = [], allSwimmers = [];
     let editingId = null;
+    let pendingOps = [];
 
-    if (!hasPermission('editResult')) {
+    if (!isAdmin()) {
       document.getElementById('accessDenied').style.display = 'block';
       document.getElementById('adminPanel').style.display = 'none';
     } else {
@@ -147,10 +157,7 @@
     async function init() {
       try {
         [allResults, allMeets, allEvents, allSwimmers] = await Promise.all([
-          getAllResults(),
-          getAllMeets(),
-          getAllEvents(),
-          getAllSwimmers()
+          getAllResults(), getAllMeets(), getAllEvents(), getAllSwimmers()
         ]);
 
         meetNames = {};
@@ -160,7 +167,6 @@
         swimmerNames = {};
         allSwimmers.forEach(s => swimmerNames[s.id] = s.name);
 
-        // 填充筛选器
         const meetSel = document.getElementById('filterMeet');
         allMeets.forEach(m => {
           const opt = document.createElement('option');
@@ -186,6 +192,7 @@
         });
 
         renderTable();
+        updateSyncSection();
       } catch (err) {
         showAlert('alertBox', '加载失败: ' + err.message, 'error');
       }
@@ -224,7 +231,6 @@
             : r.status === 'deleted'
               ? '<span class="badge badge-inactive">已删除</span>'
               : '<span class="badge badge-relay">非正式</span>';
-        const canDelete = hasPermission('deleteResult') && r.status !== 'deleted';
         return `
           <tr>
             <td>${escapeHtml(r.id)}</td>
@@ -236,7 +242,7 @@
             <td class="actions">
               ${r.status !== 'deleted' ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(r.id)}" data-action="edit">编辑</button>` : ''}
               ${r.status !== 'DQ' && r.status !== 'deleted' ? `<button class="btn btn-danger btn-sm" data-id="${escapeHtml(r.id)}" data-action="dq">标记DQ</button>` : ''}
-              ${canDelete ? `<button class="btn btn-danger btn-sm" data-id="${escapeHtml(r.id)}" data-action="delete">删除</button>` : ''}
+              ${r.status !== 'deleted' ? `<button class="btn btn-danger btn-sm" data-id="${escapeHtml(r.id)}" data-action="delete">删除</button>` : ''}
             </td>
           </tr>
         `;
@@ -258,7 +264,6 @@
     });
     document.getElementById('searchInput').addEventListener('input', renderTable);
 
-    // 编辑模态框
     function openEditModal(id) {
       const result = allResults.find(r => r.id === id);
       if (!result) return;
@@ -299,42 +304,77 @@
         const updated = await updateResult(editingId, { timeMs, status, updateReason: reason });
         const idx = allResults.findIndex(r => r.id === editingId);
         if (idx !== -1) allResults[idx] = updated;
+        pendingOps.push({
+          action: 'update', entity: 'result', id: editingId,
+          data: { timeMs, status, updateReason: reason }, operator: 'admin'
+        });
         renderTable();
+        updateSyncSection();
         document.getElementById('editModal').classList.remove('active');
-        showAlert('alertBox', '修改成功', 'success');
+        showAlert('alertBox', '修改成功。点击底部"提交到GitHub"同步。', 'success');
         editingId = null;
       } catch (err) {
         showAlert('alertBox', '修改失败: ' + err.message, 'error');
       }
     });
 
-    // 标记 DQ
     async function markDQ(id) {
       if (!confirm('确定将此成绩标记为 DQ（取消资格）？')) return;
       try {
         const updated = await softDeleteResult(id, '成绩标记为 DQ');
         const idx = allResults.findIndex(r => r.id === id);
         if (idx !== -1) allResults[idx] = updated;
+        pendingOps.push({ action: 'softDelete', entity: 'result', id, operator: 'admin', reason: '成绩标记为 DQ' });
         renderTable();
-        showAlert('alertBox', '已标记为 DQ', 'success');
+        updateSyncSection();
+        showAlert('alertBox', '已标记为 DQ。点击底部"提交到GitHub"同步。', 'success');
       } catch (err) {
         showAlert('alertBox', '操作失败: ' + err.message, 'error');
       }
     }
 
-    // 删除成绩（标记 status=deleted，保留历史，不物理删除）
     async function removeResult(id) {
       if (!confirm('确定删除此成绩吗？删除后记录将保留（标记为已删除），可从筛选器查看。')) return;
       try {
         const updated = await deleteResult(id, '成绩删除');
         const idx = allResults.findIndex(r => r.id === id);
         if (idx !== -1) allResults[idx] = updated;
+        pendingOps.push({ action: 'delete', entity: 'result', id, operator: 'admin', reason: '成绩删除' });
         renderTable();
-        showAlert('alertBox', '成绩已删除（历史保留）', 'success');
+        updateSyncSection();
+        showAlert('alertBox', '成绩已删除。点击底部"提交到GitHub"同步。', 'success');
       } catch (err) {
         showAlert('alertBox', '操作失败: ' + err.message, 'error');
       }
     }
+
+    function updateSyncSection() {
+      const hasLocal = hasLocalOverrides();
+      const hasPending = pendingOps.length > 0 || getPendingSyncs().length > 0;
+      if (hasLocal.results || hasPending) {
+        document.getElementById('syncSection').style.display = 'block';
+        const allPending = [...getPendingSyncs(), ...pendingOps];
+        const list = allPending.map((p, i) =>
+          `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            ${i+1}. ${p.action} ${p.entity}${p.id ? ' '+p.id : ''}
+          </div>`
+        ).join('');
+        document.getElementById('pendingList').innerHTML = list || '<div style="color:var(--text-secondary);">本地有修改数据</div>';
+      } else {
+        document.getElementById('syncSection').style.display = 'none';
+      }
+    }
+
+    document.getElementById('btnSubmitAll').addEventListener('click', () => {
+      if (pendingOps.length === 0) {
+        showAlert('alertBox', '没有待同步的操作', 'info');
+        return;
+      }
+      pendingOps.forEach(op => submitToGitHub(op));
+      pendingOps = [];
+      updateSyncSection();
+      showAlert('alertBox', '已打开 GitHub Issue 页面，请逐个提交。', 'success');
+    });
   </script>
 </body>
 </html>

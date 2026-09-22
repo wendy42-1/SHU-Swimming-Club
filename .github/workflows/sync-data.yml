@@ -1,0 +1,59 @@
+name: Sync Data
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  sync:
+    if: contains(github.event.issue.body, '"type":"data-sync"')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    concurrency:
+      group: data-sync
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply data changes
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          python3 .github/scripts/apply_data_change.py
+
+      - name: Validate JSON
+        run: |
+          for f in data/*.json; do
+            if ! python3 -c "import json; json.load(open('$f'))" 2>/dev/null; then
+              echo "ERROR: $f is not valid JSON"
+              exit 1
+            fi
+            echo "OK: $f"
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git commit -m "data-sync: issue #${{ github.event.issue.number }}"
+          git push
+
+      - name: Close issue (success)
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue close ${{ github.event.issue.number }} --comment "✅ 数据已同步，GitHub Pages 正在重新部署（约 30-60 秒）。"
+
+      - name: Close issue (failure)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue close ${{ github.event.issue.number }} --comment "❌ 数据同步失败，请检查数据格式后重新提交。"

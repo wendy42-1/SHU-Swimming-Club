@@ -14,13 +14,13 @@
 
     <div class="local-storage-notice">
       <strong>提示</strong>
-      录入的成绩保存在浏览器 localStorage 中，刷新后保留，但其他设备不可见。如需永久保存，请将数据导出并提交到 GitHub 仓库。
+      录入的成绩先保存在浏览器本地（即时显示），点击"提交到GitHub"按钮同步到 GitHub 后所有设备可见。
     </div>
 
     <div id="accessDenied" style="display:none;">
       <div class="empty-state">
         <div class="empty-state-icon">🔒</div>
-        <p>仅成绩管理员和超级管理员可访问此页面</p>
+        <p>请以管理员身份登录后访问此页面</p>
       </div>
     </div>
 
@@ -33,7 +33,8 @@
         <div id="successDetails" style="line-height:1.8;font-size:0.95rem;"></div>
         <div style="display:flex;gap:12px;margin-top:12px;">
           <button class="btn btn-outline" id="btnContinue">继续录入</button>
-          <a href="admin-results-edit.html" class="btn btn-primary">查看成绩记录</a>
+          <button class="btn btn-primary" id="btnSyncResult">提交到GitHub</button>
+          <a href="admin-results-edit.html" class="btn btn-outline">查看成绩记录</a>
         </div>
       </div>
 
@@ -80,25 +81,35 @@
           <li class="empty-state" style="padding:16px;">暂无录入记录</li>
         </ul>
       </div>
+
+      <!-- 提交到 GitHub 区 -->
+      <div class="card" id="syncSection" style="margin-top:16px;display:none;">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">同步到 GitHub</h2>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">以下成绩已保存到本地，点击"全部提交到GitHub"生成 Issue 链接。</p>
+        <div id="pendingList" style="margin-bottom:12px;"></div>
+        <button class="btn btn-primary" id="btnSubmitAll">全部提交到GitHub</button>
+      </div>
     </div>
   </div>
 
   <script type="module">
     import { initPage, escapeHtml, showAlert, formatDate, genderName } from '../assets/js/app.js';
-    import { hasPermission, getCurrentRole, getRoleDisplayName } from '../src/services/authService.js';
+    import { isAdmin } from '../src/services/authService.js';
     import { getAllMeets } from '../src/services/meetService.js';
     import { getAllSwimmers } from '../src/services/swimmerService.js';
     import { getAllEvents } from '../src/services/eventService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createResult } from '../src/services/writeService.js';
+    import { createResult, getPendingSyncs, submitToGitHub } from '../src/services/writeService.js';
+    import { hasLocalOverrides } from '../src/services/syncService.js';
     import { parseTime, formatTime } from '../src/utils/time.js';
 
     initPage();
 
     let meetNames = {}, eventNames = {}, swimmerNames = {};
     let recentResults = [];
+    let pendingOps = [];
 
-    if (!hasPermission('addResult')) {
+    if (!isAdmin()) {
       document.getElementById('accessDenied').style.display = 'block';
       document.getElementById('adminPanel').style.display = 'none';
     } else {
@@ -110,10 +121,7 @@
     async function init() {
       try {
         const [meets, swimmers, events, results] = await Promise.all([
-          getAllMeets(),
-          getAllSwimmers(),
-          getAllEvents(),
-          getAllResults()
+          getAllMeets(), getAllSwimmers(), getAllEvents(), getAllResults()
         ]);
 
         meetNames = {};
@@ -123,7 +131,6 @@
         swimmerNames = {};
         swimmers.forEach(s => swimmerNames[s.id] = s.name);
 
-        // 填充下拉选项
         const meetSel = document.getElementById('formMeet');
         meets.forEach(m => {
           const opt = document.createElement('option');
@@ -141,7 +148,6 @@
         });
 
         const swimmerSel = document.getElementById('formSwimmer');
-        // 只显示 active 状态的运动员，格式为 "姓名（ID）"
         swimmers.filter(s => s.status === 'active').forEach(s => {
           const opt = document.createElement('option');
           opt.value = s.id;
@@ -149,11 +155,11 @@
           swimmerSel.appendChild(opt);
         });
 
-        // 显示最近10条成绩
         recentResults = [...results].sort((a, b) =>
           new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
         ).slice(0, 10);
         renderRecent();
+        updateSyncSection();
       } catch (err) {
         showAlert('alertBox', '数据加载失败: ' + err.message, 'error');
       }
@@ -186,7 +192,13 @@
         renderRecent();
         document.getElementById('formTime').value = '';
 
-        // 显示详细成功反馈
+        pendingOps.push({
+          action: 'create', entity: 'result',
+          data: { id: newResult.id, swimmerId, eventId, meetId, timeMs, status },
+          operator: 'admin'
+        });
+        updateSyncSection();
+
         const meetName = meetNames[meetId] || meetId;
         const eventName = eventNames[eventId] || eventId;
         const swimmerName = swimmerNames[swimmerId] || swimmerId;
@@ -200,17 +212,27 @@
           <div><strong>记录ID：</strong>${escapeHtml(newResult.id)}</div>
         `;
         document.getElementById('successPanel').style.display = 'block';
-        showAlert('alertBox', '', 'success');
         document.getElementById('alertBox').style.display = 'none';
       } catch (err) {
         showAlert('alertBox', '录入失败: ' + err.message, 'error');
       }
     });
 
-    // 继续录入按钮：隐藏成功面板，重置表单
     document.getElementById('btnContinue').addEventListener('click', () => {
       document.getElementById('successPanel').style.display = 'none';
       document.getElementById('resultForm').reset();
+    });
+
+    // 成功面板中的"提交到GitHub"按钮
+    document.getElementById('btnSyncResult').addEventListener('click', () => {
+      if (pendingOps.length === 0) {
+        showAlert('alertBox', '没有待同步的操作', 'info');
+        return;
+      }
+      pendingOps.forEach(op => submitToGitHub(op));
+      pendingOps = [];
+      updateSyncSection();
+      showAlert('alertBox', '已打开 GitHub Issue 页面，请逐个提交。', 'success');
     });
 
     function renderRecent() {
@@ -232,6 +254,34 @@
         </li>
       `).join('');
     }
+
+    function updateSyncSection() {
+      const hasLocal = hasLocalOverrides();
+      const hasPending = pendingOps.length > 0 || getPendingSyncs().length > 0;
+      if (hasLocal.results || hasPending) {
+        document.getElementById('syncSection').style.display = 'block';
+        const allPending = [...getPendingSyncs(), ...pendingOps];
+        const list = allPending.map((p, i) =>
+          `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            ${i+1}. ${p.action} ${p.entity}${p.id ? ' '+p.id : ''}
+          </div>`
+        ).join('');
+        document.getElementById('pendingList').innerHTML = list || '<div style="color:var(--text-secondary);">本地有修改数据</div>';
+      } else {
+        document.getElementById('syncSection').style.display = 'none';
+      }
+    }
+
+    document.getElementById('btnSubmitAll').addEventListener('click', () => {
+      if (pendingOps.length === 0) {
+        showAlert('alertBox', '没有待同步的操作', 'info');
+        return;
+      }
+      pendingOps.forEach(op => submitToGitHub(op));
+      pendingOps = [];
+      updateSyncSection();
+      showAlert('alertBox', '已打开 GitHub Issue 页面，请逐个提交。', 'success');
+    });
   </script>
 </body>
 </html>

@@ -1,20 +1,22 @@
-﻿/**
- * writeService.js - 数据写入层（localStorage）
+/**
+ * writeService.js - 数据写入层
  *
- * ⚠️ 重要说明：
- * 当前版本使用 localStorage 作为临时写入层。
- * - 新增/修改的数据保存在浏览器 localStorage 中
- * - 刷新页面后数据仍然存在（同一浏览器同一设备）
- * - 但不同设备/浏览器之间不共享 localStorage 数据
- * - 未来可迁移到 GitHub API 或后端服务实现持久化写入
+ * 架构（P1 更新）：
+ *   写入流程：管理员操作 → 先写入 localStorage（即时显示）→ 生成 Issue URL
+ *   → 管理员点击 → 浏览器打开 GitHub 新建 Issue 页面 → 管理员点 Submit
+ *   → GitHub Actions 自动触发 → 修改 data/*.json → commit → push
+ *   → GitHub Pages 重新部署 → 所有设备刷新即可看到新数据
  *
- * 数据合并策略：
- * - 读取时：dataService 优先从 localStorage 读取覆盖数据，回退到 JSON 文件
- * - 写入时：先读取 JSON 原始数据（或已有的 localStorage 数据），合并后写回 localStorage
+ *   安全：Token 绝不暴露到前端。写入操作通过 GitHub Issue 提交，
+ *         由 GitHub Actions 使用自带的 GITHUB_TOKEN 执行。
+ *
+ *   localStorage = 本地临时覆盖层（写入后立即在当前设备可见）
+ *   GitHub JSON = 最终共享数据源（Issue 同步后所有设备可见）
  */
 
 import { fetchData, clearCache } from './dataService.js';
-import { getCurrentRole, getRoleDisplayName } from './authService.js';
+import { buildIssueUrl, writeLocalOverride, readLocalOverride } from './syncService.js';
+import { isAdmin, getOperatorName } from './authService.js';
 
 const LS_PREFIX = 'swim_data_';
 const FILES = {
@@ -25,39 +27,20 @@ const FILES = {
 };
 
 /**
- * 从 localStorage 读取数据数组，如果不存在则返回 null
- */
-function readLocal(fileKey) {
-  try {
-    const raw = localStorage.getItem(LS_PREFIX + FILES[fileKey]);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (e) {
-    console.warn('读取 localStorage 失败:', fileKey, e);
-    return null;
-  }
-}
-
-/**
- * 写入数据到 localStorage
- */
-function writeLocal(fileKey, data) {
-  try {
-    localStorage.setItem(LS_PREFIX + FILES[fileKey], JSON.stringify(data));
-    clearCache(); // 清除 dataService 缓存，使下次读取获取最新数据
-  } catch (e) {
-    console.error('写入 localStorage 失败:', fileKey, e);
-    throw new Error('数据保存失败：浏览器存储空间可能不足');
-  }
-}
-
-/**
  * 获取当前数据（优先 localStorage，回退到 JSON 文件）
  */
 async function getCurrentData(fileKey) {
-  const local = readLocal(fileKey);
+  const local = readLocalOverride(fileKey);
   if (local !== null) return local;
   return await fetchData(FILES[fileKey]);
+}
+
+/**
+ * 写入 localStorage 并清除 dataService 缓存
+ */
+function writeLocal(fileKey, data) {
+  writeLocalOverride(fileKey, data);
+  clearCache();
 }
 
 /**
@@ -67,7 +50,6 @@ async function getCurrentData(fileKey) {
  * @returns {string} 新的 ID
  */
 function generateId(prefix, existing) {
-  // 使用时间戳 + 随机数生成唯一 ID，避免批量操作时重复
   const existingIds = new Set(existing.map(item => item.id));
   let id;
   do {
@@ -82,7 +64,7 @@ function generateId(prefix, existing) {
  * 获取当前操作者信息
  */
 function getOperator() {
-  return getRoleDisplayName(getCurrentRole());
+  return getOperatorName();
 }
 
 /**
@@ -90,6 +72,59 @@ function getOperator() {
  */
 function now() {
   return new Date().toISOString();
+}
+
+// ============================================
+// 同步状态跟踪
+// ============================================
+
+/** 待同步的操作列表（存在 sessionStorage，刷新后保留） */
+const PENDING_KEY = 'swim_pending_sync';
+
+/**
+ * 获取待同步操作列表
+ * @returns {Array}
+ */
+export function getPendingSyncs() {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 添加待同步操作
+ * @param {Object} payload - 同步请求
+ */
+function addPendingSync(payload) {
+  const list = getPendingSyncs();
+  list.push({
+    ...payload,
+    timestamp: now()
+  });
+  sessionStorage.setItem(PENDING_KEY, JSON.stringify(list));
+}
+
+/**
+ * 清除待同步操作列表
+ */
+export function clearPendingSyncs() {
+  sessionStorage.removeItem(PENDING_KEY);
+}
+
+/**
+ * 生成 Issue URL 并在新标签页打开
+ * 同时将操作记录到待同步列表
+ * @param {Object} payload - 同步请求
+ * @returns {string} Issue URL
+ */
+export function submitToGitHub(payload) {
+  const url = buildIssueUrl(payload);
+  addPendingSync(payload);
+  window.open(url, '_blank');
+  return url;
 }
 
 // ============================================
@@ -103,11 +138,11 @@ function now() {
  */
 export async function createSwimmer(swimmer) {
   const swimmers = await getCurrentData('swimmers');
-  
+
   if (!swimmer.name || !swimmer.name.trim()) {
     throw new Error('运动员姓名不能为空');
   }
-  
+
   const id = generateId('S', swimmers);
   const newSwimmer = {
     id,
@@ -118,7 +153,7 @@ export async function createSwimmer(swimmer) {
     createdAt: now(),
     createdBy: getOperator()
   };
-  
+
   swimmers.push(newSwimmer);
   writeLocal('swimmers', swimmers);
   return newSwimmer;
@@ -134,14 +169,14 @@ export async function updateSwimmer(id, updates) {
   const swimmers = await getCurrentData('swimmers');
   const idx = swimmers.findIndex(s => s.id === id);
   if (idx === -1) throw new Error('运动员不存在: ' + id);
-  
+
   swimmers[idx] = {
     ...swimmers[idx],
     ...updates,
     updatedAt: now(),
     updatedBy: getOperator()
   };
-  
+
   writeLocal('swimmers', swimmers);
   return swimmers[idx];
 }
@@ -196,14 +231,14 @@ export async function hasSwimmerResults(swimmerId) {
  */
 export async function createMeet(meet) {
   const meets = await getCurrentData('meets');
-  
+
   if (!meet.name || !meet.name.trim()) {
     throw new Error('比赛名称不能为空');
   }
   if (!meet.date) {
     throw new Error('比赛日期不能为空');
   }
-  
+
   const id = generateId('M', meets);
   const newMeet = {
     id,
@@ -214,7 +249,7 @@ export async function createMeet(meet) {
     createdAt: now(),
     createdBy: getOperator()
   };
-  
+
   meets.push(newMeet);
   writeLocal('meets', meets);
   return newMeet;
@@ -230,14 +265,14 @@ export async function updateMeet(id, updates) {
   const meets = await getCurrentData('meets');
   const idx = meets.findIndex(m => m.id === id);
   if (idx === -1) throw new Error('比赛不存在: ' + id);
-  
+
   meets[idx] = {
     ...meets[idx],
     ...updates,
     updatedAt: now(),
     updatedBy: getOperator()
   };
-  
+
   writeLocal('meets', meets);
   return meets[idx];
 }
@@ -314,14 +349,14 @@ export async function hasMeetResults(meetId) {
  */
 export async function createEvent(event) {
   const events = await getCurrentData('events');
-  
+
   if (!event.name || !event.name.trim()) {
     throw new Error('项目名称不能为空');
   }
   if (!event.distance || event.distance <= 0) {
     throw new Error('项目距离必须大于 0');
   }
-  
+
   const id = generateId('E', events);
   const newEvent = {
     id,
@@ -334,7 +369,7 @@ export async function createEvent(event) {
     createdAt: now(),
     createdBy: getOperator()
   };
-  
+
   events.push(newEvent);
   writeLocal('events', events);
   return newEvent;
@@ -350,14 +385,14 @@ export async function updateEvent(id, updates) {
   const events = await getCurrentData('events');
   const idx = events.findIndex(e => e.id === id);
   if (idx === -1) throw new Error('项目不存在: ' + id);
-  
+
   events[idx] = {
     ...events[idx],
     ...updates,
     updatedAt: now(),
     updatedBy: getOperator()
   };
-  
+
   writeLocal('events', events);
   return events[idx];
 }
@@ -373,14 +408,14 @@ export async function updateEvent(id, updates) {
  */
 export async function createResult(result) {
   const results = await getCurrentData('results');
-  
+
   if (!result.swimmerId) throw new Error('请选择运动员');
   if (!result.eventId) throw new Error('请选择项目');
   if (!result.meetId) throw new Error('请选择比赛');
   if (result.timeMs == null || result.timeMs < 0) {
     throw new Error('成绩数据无效');
   }
-  
+
   const id = generateId('R', results);
   const newResult = {
     id,
@@ -395,7 +430,7 @@ export async function createResult(result) {
     updatedBy: null,
     updateReason: null
   };
-  
+
   results.push(newResult);
   writeLocal('results', results);
   return newResult;
@@ -411,11 +446,11 @@ export async function updateResult(id, updates) {
   const results = await getCurrentData('results');
   const idx = results.findIndex(r => r.id === id);
   if (idx === -1) throw new Error('成绩记录不存在: ' + id);
-  
+
   const oldValues = {};
   if (updates.timeMs !== undefined) oldValues.timeMs = results[idx].timeMs;
   if (updates.status !== undefined) oldValues.status = results[idx].status;
-  
+
   results[idx] = {
     ...results[idx],
     ...updates,
@@ -424,7 +459,7 @@ export async function updateResult(id, updates) {
     updateReason: updates.updateReason || '',
     previousValues: oldValues
   };
-  
+
   writeLocal('results', results);
   return results[idx];
 }
@@ -466,7 +501,7 @@ export async function deleteResult(id, reason) {
 export function hasLocalOverrides() {
   const result = {};
   Object.keys(FILES).forEach(key => {
-    result[key] = localStorage.getItem(LS_PREFIX + FILES[key]) !== null;
+    result[key] = readLocalOverride(key) !== null;
   });
   return result;
 }
@@ -488,7 +523,7 @@ export function clearLocalOverrides() {
 export function exportLocalData() {
   const result = {};
   Object.keys(FILES).forEach(key => {
-    const data = readLocal(key);
+    const data = readLocalOverride(key);
     if (data !== null) result[key] = data;
   });
   return result;

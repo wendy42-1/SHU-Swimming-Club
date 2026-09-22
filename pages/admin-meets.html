@@ -14,13 +14,13 @@
 
     <div class="local-storage-notice">
       <strong>提示</strong>
-      新增和修改的比赛数据保存在浏览器 localStorage 中，刷新后保留，但其他设备不可见。
+      新增和修改的比赛数据先保存在浏览器本地（即时显示），点击"提交到GitHub"按钮同步到 GitHub 后所有设备可见。
     </div>
 
     <div id="accessDenied" style="display:none;">
       <div class="empty-state">
         <div class="empty-state-icon">🔒</div>
-        <p>仅超级管理员可访问此页面</p>
+        <p>请以管理员身份登录后访问此页面</p>
       </div>
     </div>
 
@@ -76,6 +76,14 @@
           </table>
         </div>
       </div>
+
+      <!-- 提交到 GitHub 区 -->
+      <div class="card" id="syncSection" style="margin-top:16px;display:none;">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">同步到 GitHub</h2>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">以下操作已保存到本地，点击"提交到GitHub"生成 Issue 链接。</p>
+        <div id="pendingList" style="margin-bottom:12px;"></div>
+        <button class="btn btn-primary" id="btnSubmitAll">全部提交到GitHub</button>
+      </div>
     </div>
   </div>
 
@@ -105,6 +113,7 @@
             <option value="scheduled">计划中</option>
             <option value="active">进行中</option>
             <option value="completed">已结束</option>
+            <option value="inactive">已停用</option>
           </select>
         </div>
       </div>
@@ -117,18 +126,20 @@
 
   <script type="module">
     import { initPage, escapeHtml, showAlert, formatDate } from '../assets/js/app.js';
-    import { hasPermission } from '../src/services/authService.js';
+    import { isAdmin } from '../src/services/authService.js';
     import { getAllMeets } from '../src/services/meetService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createMeet, updateMeet, softDeleteMeet, deleteMeet, hasMeetResults } from '../src/services/writeService.js';
+    import { createMeet, updateMeet, softDeleteMeet, deleteMeet, hasMeetResults, getPendingSyncs, submitToGitHub } from '../src/services/writeService.js';
+    import { hasLocalOverrides } from '../src/services/syncService.js';
 
     initPage();
 
     let allMeets = [];
     let allResults = [];
     let editingId = null;
+    let pendingOps = [];
 
-    if (!hasPermission('createMeet')) {
+    if (!isAdmin()) {
       document.getElementById('accessDenied').style.display = 'block';
       document.getElementById('adminPanel').style.display = 'none';
     } else {
@@ -141,6 +152,7 @@
       try {
         [allMeets, allResults] = await Promise.all([getAllMeets(), getAllResults()]);
         renderTable();
+        updateSyncSection();
       } catch (err) {
         showAlert('alertBox', '加载失败: ' + err.message, 'error');
       }
@@ -162,8 +174,8 @@
             : m.status === 'active'
               ? '<span class="badge badge-active">进行中</span>'
               : '<span class="badge badge-relay">计划中</span>';
-        const canDelete = hasPermission('deleteMeet') && count === 0 && m.status !== 'inactive';
-        const canDeactivate = hasPermission('deleteMeet') && m.status !== 'inactive';
+        const canDelete = count === 0 && m.status !== 'inactive';
+        const canDeactivate = m.status !== 'inactive';
         return `
           <tr>
             <td>${escapeHtml(m.id)}</td>
@@ -191,7 +203,6 @@
       });
     }
 
-    // 停用比赛（软删除，保留历史）
     async function deactivateMeet(id) {
       const meet = allMeets.find(m => m.id === id);
       if (!meet) return;
@@ -204,14 +215,15 @@
         const updated = await softDeleteMeet(id, '管理员停用');
         const idx = allMeets.findIndex(m => m.id === id);
         if (idx !== -1) allMeets[idx] = updated;
+        pendingOps.push({ action: 'softDelete', entity: 'meet', id, operator: 'admin', reason: '管理员停用' });
         renderTable();
-        showAlert('alertBox', `比赛 ${meet.name} 已停用`, 'success');
+        updateSyncSection();
+        showAlert('alertBox', `比赛 ${meet.name} 已停用。点击底部"提交到GitHub"同步。`, 'success');
       } catch (err) {
         showAlert('alertBox', '停用失败: ' + err.message, 'error');
       }
     }
 
-    // 物理删除比赛（仅限无成绩）
     async function removeMeet(id) {
       const meet = allMeets.find(m => m.id === id);
       if (!meet) return;
@@ -224,14 +236,15 @@
       try {
         await deleteMeet(id);
         allMeets = allMeets.filter(m => m.id !== id);
+        pendingOps.push({ action: 'delete', entity: 'meet', id, operator: 'admin' });
         renderTable();
-        showAlert('alertBox', `比赛 ${meet.name} 已删除`, 'success');
+        updateSyncSection();
+        showAlert('alertBox', `比赛 ${meet.name} 已删除。点击底部"提交到GitHub"同步。`, 'success');
       } catch (err) {
         showAlert('alertBox', '删除失败: ' + err.message, 'error');
       }
     }
 
-    // 新增比赛
     document.getElementById('addForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('meetName').value.trim();
@@ -245,15 +258,20 @@
       try {
         const newMeet = await createMeet({ name, date, location, status });
         allMeets.push(newMeet);
+        pendingOps.push({
+          action: 'create', entity: 'meet',
+          data: { id: newMeet.id, name, date, location, status },
+          operator: 'admin'
+        });
         renderTable();
+        updateSyncSection();
         document.getElementById('addForm').reset();
-        showAlert('alertBox', `新增成功: ${name} (ID: ${newMeet.id})`, 'success');
+        showAlert('alertBox', `新增成功: ${name} (ID: ${newMeet.id})。点击底部"提交到GitHub"同步。`, 'success');
       } catch (err) {
         showAlert('alertBox', '新增失败: ' + err.message, 'error');
       }
     });
 
-    // 编辑模态框
     function openEditModal(id) {
       const meet = allMeets.find(m => m.id === id);
       if (!meet) return;
@@ -287,13 +305,43 @@
         const updated = await updateMeet(editingId, updates);
         const idx = allMeets.findIndex(m => m.id === editingId);
         if (idx !== -1) allMeets[idx] = updated;
+        pendingOps.push({ action: 'update', entity: 'meet', id: editingId, data: updates, operator: 'admin' });
         renderTable();
+        updateSyncSection();
         document.getElementById('editModal').classList.remove('active');
-        showAlert('alertBox', '修改成功', 'success');
+        showAlert('alertBox', '修改成功。点击底部"提交到GitHub"同步。', 'success');
         editingId = null;
       } catch (err) {
         showAlert('alertBox', '修改失败: ' + err.message, 'error');
       }
+    });
+
+    function updateSyncSection() {
+      const hasLocal = hasLocalOverrides();
+      const hasPending = pendingOps.length > 0 || getPendingSyncs().length > 0;
+      if (hasLocal.meets || hasPending) {
+        document.getElementById('syncSection').style.display = 'block';
+        const allPending = [...getPendingSyncs(), ...pendingOps];
+        const list = allPending.map((p, i) =>
+          `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            ${i+1}. ${p.action} ${p.entity}${p.id ? ' '+p.id : ''}
+          </div>`
+        ).join('');
+        document.getElementById('pendingList').innerHTML = list || '<div style="color:var(--text-secondary);">本地有修改数据</div>';
+      } else {
+        document.getElementById('syncSection').style.display = 'none';
+      }
+    }
+
+    document.getElementById('btnSubmitAll').addEventListener('click', () => {
+      if (pendingOps.length === 0) {
+        showAlert('alertBox', '没有待同步的操作', 'info');
+        return;
+      }
+      pendingOps.forEach(op => submitToGitHub(op));
+      pendingOps = [];
+      updateSyncSection();
+      showAlert('alertBox', '已打开 GitHub Issue 页面，请逐个提交。', 'success');
     });
   </script>
 </body>

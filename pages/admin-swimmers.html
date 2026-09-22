@@ -14,13 +14,13 @@
 
     <div class="local-storage-notice">
       <strong>提示</strong>
-      新增和修改的运动员数据保存在浏览器 localStorage 中，刷新后保留，但其他设备不可见。
+      新增和修改的运动员数据先保存在浏览器本地（即时显示），点击"提交到GitHub"按钮同步到 GitHub 后所有设备可见。
     </div>
 
     <div id="accessDenied" style="display:none;">
       <div class="empty-state">
         <div class="empty-state-icon">🔒</div>
-        <p>仅超级管理员可访问此页面</p>
+        <p>请以管理员身份登录后访问此页面</p>
       </div>
     </div>
 
@@ -84,6 +84,14 @@
           </table>
         </div>
       </div>
+
+      <!-- 提交到 GitHub 区 -->
+      <div class="card" id="syncSection" style="margin-top:16px;display:none;">
+        <h2 class="section-title" style="border:none;margin-bottom:8px;">同步到 GitHub</h2>
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px;">以下操作已保存到本地，点击"提交到GitHub"生成 Issue 链接，在 GitHub 创建 Issue 后 Actions 自动同步。</p>
+        <div id="pendingList" style="margin-bottom:12px;"></div>
+        <button class="btn btn-primary" id="btnSubmitAll">全部提交到GitHub</button>
+      </div>
     </div>
   </div>
 
@@ -127,19 +135,21 @@
 
   <script type="module">
     import { initPage, escapeHtml, showAlert, genderName } from '../assets/js/app.js';
-    import { isAdmin, hasPermission, getCurrentRole } from '../src/services/authService.js';
+    import { isAdmin } from '../src/services/authService.js';
     import { getAllSwimmers } from '../src/services/swimmerService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createSwimmer, updateSwimmer, softDeleteSwimmer, hasSwimmerResults } from '../src/services/writeService.js';
+    import { createSwimmer, updateSwimmer, softDeleteSwimmer, hasSwimmerResults, getPendingSyncs, clearPendingSyncs, submitToGitHub } from '../src/services/writeService.js';
+    import { hasLocalOverrides } from '../src/services/syncService.js';
 
     initPage();
 
     let allSwimmers = [];
     let allResults = [];
     let editingId = null;
-    let statusFilter = 'all'; // 'all' | 'active' | 'inactive'
+    let statusFilter = 'all';
+    let pendingOps = [];
 
-    if (!hasPermission('addSwimmer')) {
+    if (!isAdmin()) {
       document.getElementById('accessDenied').style.display = 'block';
       document.getElementById('adminPanel').style.display = 'none';
     } else {
@@ -152,6 +162,7 @@
       try {
         [allSwimmers, allResults] = await Promise.all([getAllSwimmers(), getAllResults()]);
         renderTable();
+        updateSyncSection();
       } catch (err) {
         showAlert('alertBox', '加载失败: ' + err.message, 'error');
       }
@@ -180,7 +191,7 @@
 
       tbody.innerHTML = swimmers.map(s => {
         const hasResults = allResults.some(r => r.swimmerId === s.id);
-        const canDeactivate = hasPermission('deleteSwimmer') && s.status !== 'inactive';
+        const canDeactivate = s.status !== 'inactive';
         return `
         <tr>
           <td>${escapeHtml(s.id)}</td>
@@ -200,7 +211,6 @@
       `;
       }).join('');
 
-      // 绑定事件
       tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
         btn.addEventListener('click', () => openEditModal(btn.dataset.id));
       });
@@ -222,8 +232,13 @@
         const updated = await softDeleteSwimmer(id, '管理员停用');
         const idx = allSwimmers.findIndex(s => s.id === id);
         if (idx !== -1) allSwimmers[idx] = updated;
+        pendingOps.push({
+          action: 'softDelete', entity: 'swimmer', id: id,
+          operator: 'admin', reason: '管理员停用'
+        });
         renderTable();
-        showAlert('alertBox', `${swimmer.name} 已停用（历史成绩已保留）`, 'success');
+        updateSyncSection();
+        showAlert('alertBox', `${swimmer.name} 已停用（历史成绩已保留）。点击底部"提交到GitHub"同步。`, 'success');
       } catch (err) {
         showAlert('alertBox', '停用失败: ' + err.message, 'error');
       }
@@ -238,7 +253,6 @@
         renderTable();
       });
     });
-    // 默认高亮"全部"
     document.querySelector('.filter-tab[data-filter="all"]').classList.add('btn-primary');
 
     // 新增运动员
@@ -249,28 +263,24 @@
       let group = document.getElementById('swimmerGroup').value.trim();
       const status = document.getElementById('swimmerStatus').value;
 
-      if (!name) {
-        showAlert('alertBox', '姓名不能为空', 'warning');
-        return;
-      }
+      if (!name) { showAlert('alertBox', '姓名不能为空', 'warning'); return; }
+      if (!group) { group = gender === 'female' ? '女子组' : '男子组'; }
 
-      if (!group) {
-        group = gender === 'female' ? '女子组' : '男子组';
-      }
-
-      // 检查重名（同姓名+同性别）
       const exists = allSwimmers.some(s => s.name === name && s.gender === gender);
-      if (exists) {
-        showAlert('alertBox', `已存在同名同性别运动员: ${name}`, 'warning');
-        return;
-      }
+      if (exists) { showAlert('alertBox', `已存在同名同性别运动员: ${name}`, 'warning'); return; }
 
       try {
         const newSwimmer = await createSwimmer({ name, gender, group, status });
         allSwimmers.push(newSwimmer);
+        pendingOps.push({
+          action: 'create', entity: 'swimmer',
+          data: { id: newSwimmer.id, name, gender, group, status },
+          operator: 'admin'
+        });
         renderTable();
+        updateSyncSection();
         document.getElementById('addForm').reset();
-        showAlert('alertBox', `新增成功: ${name} (ID: ${newSwimmer.id})`, 'success');
+        showAlert('alertBox', `新增成功: ${name} (ID: ${newSwimmer.id})。点击底部"提交到GitHub"同步。`, 'success');
       } catch (err) {
         showAlert('alertBox', '新增失败: ' + err.message, 'error');
       }
@@ -295,7 +305,6 @@
       document.getElementById('editModal').classList.remove('active');
       editingId = null;
     });
-
     document.getElementById('cancelEdit').addEventListener('click', () => {
       document.getElementById('editModal').classList.remove('active');
       editingId = null;
@@ -309,21 +318,56 @@
         group: document.getElementById('editGroup').value.trim(),
         status: document.getElementById('editStatus').value
       };
-      if (!updates.name) {
-        showAlert('alertBox', '姓名不能为空', 'warning');
-        return;
-      }
+      if (!updates.name) { showAlert('alertBox', '姓名不能为空', 'warning'); return; }
       try {
         const updated = await updateSwimmer(editingId, updates);
         const idx = allSwimmers.findIndex(s => s.id === editingId);
         if (idx !== -1) allSwimmers[idx] = updated;
+        pendingOps.push({
+          action: 'update', entity: 'swimmer', id: editingId,
+          data: updates, operator: 'admin'
+        });
         renderTable();
+        updateSyncSection();
         document.getElementById('editModal').classList.remove('active');
-        showAlert('alertBox', '修改成功', 'success');
+        showAlert('alertBox', '修改成功。点击底部"提交到GitHub"同步。', 'success');
         editingId = null;
       } catch (err) {
         showAlert('alertBox', '修改失败: ' + err.message, 'error');
       }
+    });
+
+    // 同步区
+    function updateSyncSection() {
+      const hasLocal = hasLocalOverrides();
+      const hasPending = pendingOps.length > 0 || getPendingSyncs().length > 0;
+
+      if (hasLocal.swimmers || hasPending) {
+        document.getElementById('syncSection').style.display = 'block';
+        const allPending = [...getPendingSyncs(), ...pendingOps];
+        const list = allPending.map((p, i) =>
+          `<div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            ${i+1}. ${p.action} ${p.entity}${p.id ? ' '+p.id : ''}
+          </div>`
+        ).join('');
+        document.getElementById('pendingList').innerHTML = list || '<div style="color:var(--text-secondary);">本地有修改数据</div>';
+      } else {
+        document.getElementById('syncSection').style.display = 'none';
+      }
+    }
+
+    document.getElementById('btnSubmitAll').addEventListener('click', () => {
+      if (pendingOps.length === 0) {
+        showAlert('alertBox', '没有待同步的操作', 'info');
+        return;
+      }
+      // 逐个生成 Issue URL 并打开
+      pendingOps.forEach(op => {
+        submitToGitHub(op);
+      });
+      pendingOps = [];
+      updateSyncSection();
+      showAlert('alertBox', '已打开 GitHub Issue 页面，请逐个提交。提交后等待 Actions 自动同步（约30-60秒）。', 'success');
     });
   </script>
 </body>

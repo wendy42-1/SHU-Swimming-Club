@@ -1,14 +1,17 @@
 /**
  * dataService.js - 基础数据访问层
- * 
- * 负责从 JSON 文件加载所有数据，提供缓存。
- * 同时集成 localStorage 读取层：如果 localStorage 中有修改后的数据，
- * 优先使用 localStorage 中的版本（合并原始 JSON + localStorage 新增/修改）。
- * 
- * 所有具体 Service 继承或引用此模块。
- * 
- * 后续如果从 JSON 迁移到真正数据库（如 Supabase / PostgreSQL），
- * 只需替换此层，而不用重写整个前端。
+ *
+ * 架构（P1 更新）：
+ *   GitHub JSON = 最终共享数据源（所有设备读取同一份数据）
+ *   localStorage = 本地缓存 / 临时覆盖层
+ *
+ * 读取优先级：
+ *   1. localStorage 临时覆盖（管理员写入但尚未同步到 GitHub 的数据）→ 立即显示
+ *   2. GitHub Pages JSON 文件（带时间戳防缓存）→ 共享数据源
+ *
+ * 管理员写入流程：
+ *   writeService → 先写 localStorage（即时显示）→ 生成 Issue URL → 管理员提交到 GitHub
+ *   → Actions 自动更新 JSON → 下次刷新时从 GitHub 拉取最新数据
  */
 
 const cache = new Map();
@@ -19,9 +22,6 @@ const cache = new Map();
  * - pages/*.html 在 pages/ 目录，路径为 ../data/
  */
 function getBasePath() {
-  const depth = window.location.pathname.split('/').filter(s => s).length;
-  // 如果最后一项是 index.html 或为空（根路径），则在根目录
-  // 如果路径中包含 pages/，则需要返回上一级
   if (window.location.pathname.includes('/pages/')) {
     return '../data/';
   }
@@ -51,6 +51,12 @@ function getLocalOverrides(fileName) {
 
 /**
  * 获取 JSON 数据（带缓存，优先使用 localStorage 覆盖）
+ *
+ * 读取优先级：
+ *   1. 内存缓存（同一页面会话内不重复请求）
+ *   2. localStorage 覆盖（管理员尚未同步的临时数据）
+ *   3. GitHub Pages JSON 文件（带时间戳防缓存）
+ *
  * @param {string} fileName - 文件名（不含路径前缀，如 'swimmers.json'）
  * @returns {Promise<Array|Object>} 解析后的 JSON 数据
  */
@@ -59,14 +65,14 @@ export async function fetchData(fileName) {
     return cache.get(fileName);
   }
 
-  // 优先尝试 localStorage 中的覆盖数据
+  // 优先尝试 localStorage 中的覆盖数据（管理员临时写入）
   const localData = getLocalOverrides(fileName);
   if (localData !== null) {
     cache.set(fileName, localData);
     return localData;
   }
 
-  // 回退到 fetch JSON 文件
+  // 回退到 fetch JSON 文件（GitHub Pages 共享数据源）
   const basePath = getBasePath();
   const url = `${basePath}${fileName}?t=${Date.now()}`;
   const response = await fetch(url);
@@ -79,7 +85,7 @@ export async function fetchData(fileName) {
 }
 
 /**
- * 清除缓存（用于手动刷新数据）
+ * 清除缓存（用于手动刷新数据或写入后失效缓存）
  */
 export function clearCache() {
   cache.clear();
@@ -87,6 +93,8 @@ export function clearCache() {
 
 /**
  * 刷新所有数据（清除缓存 + 重新加载）
+ * 注意：此函数不清除 localStorage 覆盖，仅清除内存缓存。
+ * 如需从 GitHub 拉取最新数据并清除本地覆盖，使用 syncService.syncFromGitHub()。
  */
 export async function refreshAll() {
   clearCache();
