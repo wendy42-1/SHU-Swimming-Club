@@ -214,5 +214,18 @@
     "previousValues": {
       "status": "official"
     }
+  },
+  {
+    "id": "RCMFPUGJN",
+    "swimmerId": "SCMEZGF3X",
+    "eventId": "E001",
+    "meetId": "M001",
+    "timeMs": 30460,
+    "status": "official",
+    "createdAt": "2026-09-22T12:02:21Z",
+    "createdBy": "admin",
+    "updatedAt": null,
+    "updatedBy": null,
+    "updateReason": null
   }
 ]
