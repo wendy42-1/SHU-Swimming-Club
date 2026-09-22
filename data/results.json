@@ -131,5 +131,18 @@
     "updatedAt": null,
     "updatedBy": null,
     "updateReason": null
+  },
+  {
+    "id": "RCHJ324P6",
+    "swimmerId": "S004",
+    "eventId": "E017",
+    "meetId": "M001",
+    "timeMs": 35400,
+    "status": "official",
+    "createdAt": "2026-09-22T09:47:07Z",
+    "createdBy": "admin",
+    "updatedAt": null,
+    "updatedBy": null,
+    "updateReason": null
   }
 ]
