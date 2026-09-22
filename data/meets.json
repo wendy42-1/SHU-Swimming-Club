@@ -1,25 +1,20 @@
 [
   {
     "id": "M001",
-    "name": "2026年招新测试",
+    "name": "26秋招新测试",
     "date": "2026-10-01",
     "location": "上海大学",
     "status": "active",
-    "updatedAt": "2026-09-22T09:16:44Z",
+    "updatedAt": "2026-09-22T13:51:00Z",
     "updatedBy": "admin"
   },
   {
     "id": "M002",
-    "name": "2026年学院杯",
+    "name": "26春测试",
     "date": "2026-04-15",
     "location": "上海大学",
-    "status": "active"
-  },
-  {
-    "id": "M003",
-    "name": "2025梦想杯",
-    "date": "2025-10-19",
-    "location": "上海大学",
-    "status": "completed"
+    "status": "completed",
+    "updatedAt": "2026-09-22T13:51:00Z",
+    "updatedBy": "admin"
   }
 ]
