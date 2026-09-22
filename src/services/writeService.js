@@ -154,8 +154,8 @@ export async function createSwimmer(swimmer) {
     createdBy: getOperator()
   };
 
-  swimmers.push(newSwimmer);
-  writeLocal('swimmers', swimmers);
+  const updated = [...swimmers, newSwimmer];
+  writeLocal('swimmers', updated);
   return newSwimmer;
 }
 
@@ -170,15 +170,16 @@ export async function updateSwimmer(id, updates) {
   const idx = swimmers.findIndex(s => s.id === id);
   if (idx === -1) throw new Error('运动员不存在: ' + id);
 
-  swimmers[idx] = {
+  const updatedItem = {
     ...swimmers[idx],
     ...updates,
     updatedAt: now(),
     updatedBy: getOperator()
   };
-
-  writeLocal('swimmers', swimmers);
-  return swimmers[idx];
+  const updated = [...swimmers];
+  updated[idx] = updatedItem;
+  writeLocal('swimmers', updated);
+  return updatedItem;
 }
 
 /**
@@ -198,16 +199,17 @@ export async function softDeleteSwimmer(id, reason) {
   if (idx === -1) throw new Error('运动员不存在: ' + id);
   if (swimmers[idx].status === 'inactive') throw new Error('该运动员已处于停用状态');
 
-  swimmers[idx] = {
+  const updatedItem = {
     ...swimmers[idx],
     status: 'inactive',
     updatedAt: now(),
     updatedBy: getOperator(),
     updateReason: reason || '运动员停用'
   };
-
-  writeLocal('swimmers', swimmers);
-  return swimmers[idx];
+  const updated = [...swimmers];
+  updated[idx] = updatedItem;
+  writeLocal('swimmers', updated);
+  return updatedItem;
 }
 
 /**
@@ -250,8 +252,8 @@ export async function createMeet(meet) {
     createdBy: getOperator()
   };
 
-  meets.push(newMeet);
-  writeLocal('meets', meets);
+  const updated = [...meets, newMeet];
+  writeLocal('meets', updated);
   return newMeet;
 }
 
@@ -266,15 +268,16 @@ export async function updateMeet(id, updates) {
   const idx = meets.findIndex(m => m.id === id);
   if (idx === -1) throw new Error('比赛不存在: ' + id);
 
-  meets[idx] = {
+  const updatedItem = {
     ...meets[idx],
     ...updates,
     updatedAt: now(),
     updatedBy: getOperator()
   };
-
-  writeLocal('meets', meets);
-  return meets[idx];
+  const updated = [...meets];
+  updated[idx] = updatedItem;
+  writeLocal('meets', updated);
+  return updatedItem;
 }
 
 /**
@@ -289,16 +292,17 @@ export async function softDeleteMeet(id, reason) {
   if (idx === -1) throw new Error('比赛不存在: ' + id);
   if (meets[idx].status === 'inactive') throw new Error('该比赛已处于停用状态');
 
-  meets[idx] = {
+  const updatedItem = {
     ...meets[idx],
     status: 'inactive',
     updatedAt: now(),
     updatedBy: getOperator(),
     updateReason: reason || '比赛停用'
   };
-
-  writeLocal('meets', meets);
-  return meets[idx];
+  const updated = [...meets];
+  updated[idx] = updatedItem;
+  writeLocal('meets', updated);
+  return updatedItem;
 }
 
 /**
@@ -323,8 +327,8 @@ export async function deleteMeet(id) {
     throw new Error('该比赛已有成绩记录，禁止物理删除，只能停用');
   }
 
-  meets.splice(idx, 1);
-  writeLocal('meets', meets);
+  const updated = meets.filter((_, i) => i !== idx);
+  writeLocal('meets', updated);
   return true;
 }
 
@@ -370,8 +374,8 @@ export async function createEvent(event) {
     createdBy: getOperator()
   };
 
-  events.push(newEvent);
-  writeLocal('events', events);
+  const updated = [...events, newEvent];
+  writeLocal('events', updated);
   return newEvent;
 }
 
@@ -386,15 +390,16 @@ export async function updateEvent(id, updates) {
   const idx = events.findIndex(e => e.id === id);
   if (idx === -1) throw new Error('项目不存在: ' + id);
 
-  events[idx] = {
+  const updatedItem = {
     ...events[idx],
     ...updates,
     updatedAt: now(),
     updatedBy: getOperator()
   };
-
-  writeLocal('events', events);
-  return events[idx];
+  const updated = [...events];
+  updated[idx] = updatedItem;
+  writeLocal('events', updated);
+  return updatedItem;
 }
 
 // ============================================
@@ -431,8 +436,8 @@ export async function createResult(result) {
     updateReason: null
   };
 
-  results.push(newResult);
-  writeLocal('results', results);
+  const updated = [...results, newResult];
+  writeLocal('results', updated);
   return newResult;
 }
 
@@ -451,7 +456,7 @@ export async function updateResult(id, updates) {
   if (updates.timeMs !== undefined) oldValues.timeMs = results[idx].timeMs;
   if (updates.status !== undefined) oldValues.status = results[idx].status;
 
-  results[idx] = {
+  const updatedItem = {
     ...results[idx],
     ...updates,
     updatedAt: now(),
@@ -459,9 +464,10 @@ export async function updateResult(id, updates) {
     updateReason: updates.updateReason || '',
     previousValues: oldValues
   };
-
-  writeLocal('results', results);
-  return results[idx];
+  const updated = [...results];
+  updated[idx] = updatedItem;
+  writeLocal('results', updated);
+  return updatedItem;
 }
 
 /**
