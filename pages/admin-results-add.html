@@ -27,6 +27,16 @@
     <div id="adminPanel" style="display:none;">
       <div id="alertBox"></div>
 
+      <!-- 成功反馈面板 -->
+      <div id="successPanel" class="card" style="display:none;border:2px solid var(--success,#2d8659);margin-bottom:16px;">
+        <div style="color:var(--success,#2d8659);font-size:1.15rem;font-weight:700;margin-bottom:8px;">✅ 成绩录入成功</div>
+        <div id="successDetails" style="line-height:1.8;font-size:0.95rem;"></div>
+        <div style="display:flex;gap:12px;margin-top:12px;">
+          <button class="btn btn-outline" id="btnContinue">继续录入</button>
+          <a href="admin-results-edit.html" class="btn btn-primary">查看成绩记录</a>
+        </div>
+      </div>
+
       <div class="card">
         <form id="resultForm">
           <div class="form-group">
@@ -131,10 +141,11 @@
         });
 
         const swimmerSel = document.getElementById('formSwimmer');
-        swimmers.forEach(s => {
+        // 只显示 active 状态的运动员，格式为 "姓名（ID）"
+        swimmers.filter(s => s.status === 'active').forEach(s => {
           const opt = document.createElement('option');
           opt.value = s.id;
-          opt.textContent = `${s.name} (${genderName(s.gender)})`;
+          opt.textContent = `${s.name}（${s.id}）`;
           swimmerSel.appendChild(opt);
         });
 
@@ -174,10 +185,32 @@
         recentResults.unshift(newResult);
         renderRecent();
         document.getElementById('formTime').value = '';
-        showAlert('alertBox', `成绩录入成功: ${formatTime(timeMs)}`, 'success');
+
+        // 显示详细成功反馈
+        const meetName = meetNames[meetId] || meetId;
+        const eventName = eventNames[eventId] || eventId;
+        const swimmerName = swimmerNames[swimmerId] || swimmerId;
+        const statusText = status === 'official' ? '正式' : status === 'unofficial' ? '非正式' : 'DQ';
+        document.getElementById('successDetails').innerHTML = `
+          <div><strong>运动员：</strong>${escapeHtml(swimmerName)}</div>
+          <div><strong>项目：</strong>${escapeHtml(eventName)}</div>
+          <div><strong>比赛：</strong>${escapeHtml(meetName)}</div>
+          <div><strong>成绩：</strong>${formatTime(timeMs)}</div>
+          <div><strong>状态：</strong>${statusText}</div>
+          <div><strong>记录ID：</strong>${escapeHtml(newResult.id)}</div>
+        `;
+        document.getElementById('successPanel').style.display = 'block';
+        showAlert('alertBox', '', 'success');
+        document.getElementById('alertBox').style.display = 'none';
       } catch (err) {
         showAlert('alertBox', '录入失败: ' + err.message, 'error');
       }
+    });
+
+    // 继续录入按钮：隐藏成功面板，重置表单
+    document.getElementById('btnContinue').addEventListener('click', () => {
+      document.getElementById('successPanel').style.display = 'none';
+      document.getElementById('resultForm').reset();
     });
 
     function renderRecent() {

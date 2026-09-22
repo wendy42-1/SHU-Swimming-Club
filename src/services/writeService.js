@@ -67,15 +67,15 @@ async function getCurrentData(fileKey) {
  * @returns {string} 新的 ID
  */
 function generateId(prefix, existing) {
-  let maxNum = 0;
-  existing.forEach(item => {
-    const match = item.id && item.id.match(new RegExp(`^${prefix}(\\d+)$`));
-    if (match) {
-      const num = parseInt(match[1], 10);
-      if (num > maxNum) maxNum = num;
-    }
-  });
-  return `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+  // 使用时间戳 + 随机数生成唯一 ID，避免批量操作时重复
+  const existingIds = new Set(existing.map(item => item.id));
+  let id;
+  do {
+    const ts = Date.now().toString(36).toUpperCase().slice(-6);
+    const rand = Math.random().toString(36).toUpperCase().slice(2, 4);
+    id = `${prefix}${ts}${rand}`;
+  } while (existingIds.has(id));
+  return id;
 }
 
 /**
@@ -290,7 +290,10 @@ export async function createResult(result) {
     timeMs: result.timeMs,
     status: result.status || 'official',
     createdAt: now(),
-    createdBy: getOperator()
+    createdBy: getOperator(),
+    updatedAt: null,
+    updatedBy: null,
+    updateReason: null
   };
   
   results.push(newResult);

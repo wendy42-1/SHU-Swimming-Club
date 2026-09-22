@@ -64,12 +64,6 @@ export function parseTime(input) {
     return sec * 1000 + ms;
   }
 
-  // 匹配 纯秒 格式 (如 58)
-  const pureSecMatch = str.match(/^(\d{1,3})$/);
-  if (pureSecMatch) {
-    return parseInt(pureSecMatch[1], 10) * 1000;
-  }
-
   throw new Error('请输入合法成绩，例如 58.32 或 1:02.35');
 }
 

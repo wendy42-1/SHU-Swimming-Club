@@ -4,7 +4,7 @@
  * 负责：角色管理、导航栏渲染、通用工具
  */
 
-import { getCurrentRole, setCurrentRole, getRoleDisplayName, isAdmin, hasPermission, ROLES } from '../src/services/authService.js';
+import { getCurrentRole, setCurrentRole, getRoleDisplayName, isAdmin, hasPermission, ROLES } from '../../src/services/authService.js';
 
 /** 品牌名称 */
 const BRAND_NAME = '鼠智赛事通';
@@ -65,17 +65,17 @@ function renderNavbar(role) {
     { href: `${prefix}pages/meets.html`, label: '比赛', always: true },
     { href: `${prefix}pages/events.html`, label: '项目', always: true },
     { href: `${prefix}pages/ranking.html`, label: '排名', always: true },
+    { href: `${prefix}pages/admin-results-add.html`, label: '录入成绩', scoreAdminOnly: true },
     { href: `${prefix}pages/admin.html`, label: '管理', adminOnly: true },
   ];
 
-  // 子页面路径修正
+  // 子页面路径修正：子页面间互链时去掉 prefix+pages/ 前缀，直接用同目录文件名
   const navItems = pages
-    .filter(p => p.always || (p.adminOnly && isAdmin()))
+    .filter(p => p.always || (p.adminOnly && isAdmin()) || (p.scoreAdminOnly && hasPermission('addResult')))
     .map(p => {
-      // 如果是子页面，pages/ 路径不需要再加 prefix 前缀的 pages/
       let href = p.href;
       if (isSubPage() && p.href.includes('pages/')) {
-        href = `${prefix}${p.href.replace(`${prefix}pages/`, '')}`;
+        href = p.href.replace(`${prefix}pages/`, '');
       }
       return `<a href="${href}">${p.label}</a>`;
     })
