@@ -83,36 +83,42 @@
   },
   {
     "id": "E2E_SYNC_TEST_SW004",
-    "name": "E2E_SYNC_TEST_SW004_A",
-    "gender": "male",
-    "group": "E2E_TEST_GROUP",
+    "name": "E2E_SYNC_TEST_SW004_DEV_B",
+    "gender": "M",
+    "group": "test",
     "status": "active",
     "createdAt": "2026-09-22T12:35:12Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-22T12:37:20Z",
-    "updatedBy": "admin"
+    "updatedAt": "2026-09-22T12:49:46Z",
+    "updatedBy": "admin",
+    "joinDate": "2026-01-01",
+    "birthYear": 2005
   },
   {
     "id": "E2E_SYNC_TEST_SW005",
-    "name": "E2E_SYNC_TEST_SW005_A",
-    "gender": "male",
-    "group": "E2E_TEST_GROUP",
+    "name": "E2E_SYNC_TEST_SW005_DEV_B",
+    "gender": "F",
+    "group": "test",
     "status": "active",
     "createdAt": "2026-09-22T12:35:12Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-22T12:37:20Z",
-    "updatedBy": "admin"
+    "updatedAt": "2026-09-22T12:49:46Z",
+    "updatedBy": "admin",
+    "joinDate": "2026-01-01",
+    "birthYear": 2005
   },
   {
     "id": "E2E_SYNC_TEST_SW006",
-    "name": "E2E_SYNC_TEST_SW006_B",
-    "gender": "male",
-    "group": "E2E_TEST_GROUP",
+    "name": "E2E_SYNC_TEST_SW006_DEV_B",
+    "gender": "M",
+    "group": "test",
     "status": "active",
     "createdAt": "2026-09-22T12:35:12Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-22T12:37:36Z",
-    "updatedBy": "admin"
+    "updatedAt": "2026-09-22T12:49:46Z",
+    "updatedBy": "admin",
+    "joinDate": "2026-01-01",
+    "birthYear": 2005
   },
   {
     "id": "E2E_SYNC_TEST_SW007",
