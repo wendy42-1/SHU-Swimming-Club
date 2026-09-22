@@ -157,5 +157,18 @@
     "updatedAt": null,
     "updatedBy": null,
     "updateReason": null
+  },
+  {
+    "id": "RCHIKIXTV",
+    "swimmerId": "S003",
+    "eventId": "E016",
+    "meetId": "M001",
+    "timeMs": 27200,
+    "status": "official",
+    "createdAt": "2026-09-22T09:52:52Z",
+    "createdBy": "admin",
+    "updatedAt": null,
+    "updatedBy": null,
+    "updateReason": null
   }
 ]
