@@ -56,6 +56,7 @@
     import { getAllSwimmers, getSwimmerNameMap } from '../src/services/swimmerService.js';
     import { formatTime } from '../src/utils/time.js';
     import { sortResults } from '../src/algorithms/ranking.js';
+    import { initAllSearchableSelects } from '../src/components/searchableSelect.js';
 
     initPage();
 
@@ -112,6 +113,9 @@
         opt.textContent = s.name;
         swimmerSel.appendChild(opt);
       });
+
+      // 为比赛/项目/运动员筛选启用统一搜索组件
+      initAllSearchableSelects({ minLength: 8 });
     }
 
     function renderResults() {

@@ -168,7 +168,8 @@
     import { isAdmin } from '../src/services/authService.js';
     import { getAllEvents } from '../src/services/eventService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createEvent, updateEvent, getPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
+    import { createEvent, updateEvent, deleteEventPermanently, getPendingSyncs, clearPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
+    import { showHardDeleteConfirm } from '../src/components/confirmModal.js';
     import { hasLocalOverrides } from '../src/services/syncService.js';
 
     initPage();
@@ -206,6 +207,7 @@
 
       tbody.innerHTML = allEvents.map(e => {
         const count = allResults.filter(r => r.eventId === e.id && r.status === 'official').length;
+        const relatedCount = allResults.filter(r => r.eventId === e.id).length;
         return `
           <tr>
             <td>${escapeHtml(e.id)}</td>
@@ -217,6 +219,7 @@
             <td>${e.status === 'active' ? '<span class="badge badge-active">启用</span>' : '<span class="badge badge-inactive">停用</span>'}</td>
             <td class="actions">
               <button class="btn btn-outline btn-sm" data-id="${escapeHtml(e.id)}" data-action="edit">编辑</button>
+              <button class="btn btn-danger btn-sm" data-id="${escapeHtml(e.id)}" data-action="delete" data-count="${relatedCount}">删除</button>
             </td>
           </tr>
         `;
@@ -225,6 +228,36 @@
       tbody.querySelectorAll('[data-action="edit"]').forEach(btn => {
         btn.addEventListener('click', () => openEditModal(btn.dataset.id));
       });
+      tbody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', () => removeEvent(btn.dataset.id));
+      });
+    }
+
+    // 永久删除项目（v2：物理删除 + 级联删除全部成绩，两步确认）
+    async function removeEvent(id) {
+      const event = allEvents.find(e => e.id === id);
+      if (!event) return;
+      const relatedCount = allResults.filter(r => r.eventId === id).length;
+
+      const ok = await showHardDeleteConfirm({
+        entityLabel: '项目',
+        name: event.name,
+        id,
+        resultCount: relatedCount
+      });
+      if (!ok) return;
+
+      try {
+        const { removedResults, operations } = await deleteEventPermanently(id, '管理员永久删除');
+        allEvents = allEvents.filter(e => e.id !== id);
+        allResults = allResults.filter(r => r.eventId !== id);
+        pendingOps.push(...operations);
+        renderTable();
+        updateSyncSection();
+        showAlert('alertBox', `项目 ${event.name} 已永久删除（含 ${removedResults} 条关联成绩）。点击底部"提交到GitHub"同步。`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '删除失败: ' + err.message, 'error');
+      }
     }
 
     document.getElementById('addForm').addEventListener('submit', async (e) => {
@@ -322,14 +355,18 @@
     }
 
     document.getElementById('btnSubmitAll').addEventListener('click', () => {
-      if (pendingOps.length === 0) {
+      // 合并 sessionStorage 遗留操作与页面内操作，一次性提交并清空
+      const legacy = getPendingSyncs();
+      const all = [...legacy, ...pendingOps];
+      if (all.length === 0) {
         showAlert('alertBox', '没有待同步的操作', 'info');
         return;
       }
-      submitBatchToGitHub(pendingOps);
+      submitBatchToGitHub(all);
       pendingOps = [];
+      clearPendingSyncs();
       updateSyncSection();
-      showAlert('alertBox', '已打开 GitHub Issue 页面，请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。', 'success');
+      showAlert('alertBox', `已打开 GitHub Issue 页面（含 ${all.length} 项操作），请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。`, 'success');
     });
   </script>
 </body>

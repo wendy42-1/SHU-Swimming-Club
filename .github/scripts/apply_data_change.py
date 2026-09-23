@@ -126,7 +126,6 @@ def apply_batch_change(change):
 
     # 按实体分组加载数据，避免重复加载同一文件
     loaded_data = {}  # entity -> data_list
-    loaded_results = None  # meet 删除时需要 results 列表
 
     for i, op in enumerate(operations):
         entity = op.get('entity')
@@ -141,9 +140,10 @@ def apply_batch_change(change):
             loaded_data[entity] = load_data(DATA_FILES[entity])
             print(f"  Loaded {len(loaded_data[entity])} records from {DATA_FILES[entity]}")
 
-        # meet 的 delete 操作需要 results 列表
-        if entity == 'meet' and action == 'delete' and loaded_results is None:
-            loaded_results = load_data(DATA_FILES['result'])
+        # swimmer/meet/event 的 delete 操作需要 results 列表（级联删除）
+        if entity in ('swimmer', 'meet', 'event') and action == 'delete' and 'result' not in loaded_data:
+            loaded_data['result'] = load_data(DATA_FILES['result'])
+            print(f"  Loaded {len(loaded_data['result'])} records from {DATA_FILES['result']} (cascade)")
 
     # 逐个应用操作
     # 如果任何一个操作失败，立即 raise ValueError → main() 中 exit(1) → 不 commit
@@ -157,12 +157,11 @@ def apply_batch_change(change):
         print(f"  --- Operation #{i+1}/{len(operations)}: {action} {entity} ---")
 
         if entity == 'swimmer':
-            apply_swimmer_change(loaded_data['swimmer'], op)
+            apply_swimmer_change(loaded_data['swimmer'], loaded_data.get('result'), op)
         elif entity == 'meet':
-            results_ref = loaded_results if loaded_results is not None else load_data(DATA_FILES['result'])
-            apply_meet_change(loaded_data['meet'], results_ref, op)
+            apply_meet_change(loaded_data['meet'], loaded_data.get('result'), op)
         elif entity == 'event':
-            apply_event_change(loaded_data['event'], op)
+            apply_event_change(loaded_data['event'], loaded_data.get('result'), op)
         elif entity == 'result':
             apply_result_change(loaded_data['result'], op)
 
@@ -177,7 +176,7 @@ def apply_batch_change(change):
 # 运动员变更
 # ============================================
 
-def apply_swimmer_change(data_list, change):
+def apply_swimmer_change(data_list, results_list, change):
     action = change['action']
     item_data = change.get('data', {})
     operator = change.get('operator', 'admin')
@@ -233,8 +232,25 @@ def apply_swimmer_change(data_list, change):
         data_list[idx]['updateReason'] = change.get('reason', '运动员停用')
         print(f"  Deactivated swimmer: {item_id}")
 
+    elif action == 'delete':
+        # v2：物理删除运动员，关联成绩级联删除（基于仓库实时数据）
+        item_id = change.get('id')
+        if not item_id:
+            raise ValueError('永久删除运动员需要提供 ID')
+        idx = find_index(data_list, item_id)
+        if idx is None:
+            raise ValueError(f'运动员不存在: {item_id}')
+        if results_list is not None:
+            before = len(results_list)
+            results_list[:] = [r for r in results_list if r.get('swimmerId') != item_id]
+            removed = before - len(results_list)
+            if removed:
+                print(f"  Cascade deleted {removed} results of swimmer {item_id}")
+        data_list.pop(idx)
+        print(f"  Deleted swimmer: {item_id}")
+
     else:
-        raise ValueError(f'不支持的操作: {action} (运动员仅支持 create/update/softDelete)')
+        raise ValueError(f'不支持的操作: {action} (运动员仅支持 create/update/softDelete/delete)')
 
 # ============================================
 # 比赛变更
@@ -297,16 +313,19 @@ def apply_meet_change(data_list, results_list, change):
         print(f"  Deactivated meet: {item_id}")
 
     elif action == 'delete':
+        # v2：允许有成绩的比赛物理删除，关联成绩一并级联删除
         item_id = change.get('id')
         if not item_id:
             raise ValueError('删除比赛需要提供 ID')
         idx = find_index(data_list, item_id)
         if idx is None:
             raise ValueError(f'比赛不存在: {item_id}')
-        # 检查是否有成绩
-        has_results = any(r.get('meetId') == item_id for r in results_list)
-        if has_results:
-            raise ValueError(f'比赛 {item_id} 已有成绩记录，禁止物理删除，只能停用')
+        if results_list is not None:
+            before = len(results_list)
+            results_list[:] = [r for r in results_list if r.get('meetId') != item_id]
+            removed = before - len(results_list)
+            if removed:
+                print(f"  Cascade deleted {removed} results of meet {item_id}")
         data_list.pop(idx)
         print(f"  Deleted meet: {item_id}")
 
@@ -317,7 +336,7 @@ def apply_meet_change(data_list, results_list, change):
 # 项目变更
 # ============================================
 
-def apply_event_change(data_list, change):
+def apply_event_change(data_list, results_list, change):
     action = change['action']
     item_data = change.get('data', {})
     operator = change.get('operator', 'admin')
@@ -375,6 +394,23 @@ def apply_event_change(data_list, change):
         data_list[idx]['updateReason'] = change.get('reason', '项目停用')
         print(f"  Deactivated event: {item_id}")
 
+    elif action == 'delete':
+        # v2：物理删除项目，关联成绩级联删除（基于仓库实时数据）
+        item_id = change.get('id')
+        if not item_id:
+            raise ValueError('永久删除项目需要提供 ID')
+        idx = find_index(data_list, item_id)
+        if idx is None:
+            raise ValueError(f'项目不存在: {item_id}')
+        if results_list is not None:
+            before = len(results_list)
+            results_list[:] = [r for r in results_list if r.get('eventId') != item_id]
+            removed = before - len(results_list)
+            if removed:
+                print(f"  Cascade deleted {removed} results of event {item_id}")
+        data_list.pop(idx)
+        print(f"  Deleted event: {item_id}")
+
     else:
         raise ValueError(f'不支持的操作: {action}')
 
@@ -417,6 +453,17 @@ def apply_result_change(data_list, change):
             'updatedBy': None,
             'updateReason': None
         }
+        # v2 测试计时扩展字段（可选）：名次 + 自动计时/最终成绩双轨
+        if item_data.get('rank') is not None:
+            new_result['rank'] = int(item_data['rank'])
+        if item_data.get('autoTimeMs') is not None:
+            new_result['autoTimeMs'] = int(item_data['autoTimeMs'])
+        if item_data.get('autoTime') is not None:
+            new_result['autoTime'] = item_data['autoTime']
+        if item_data.get('finalTimeMs') is not None:
+            new_result['finalTimeMs'] = int(item_data['finalTimeMs'])
+        if item_data.get('finalTime') is not None:
+            new_result['finalTime'] = item_data['finalTime']
         data_list.append(new_result)
         print(f"  Created result: {new_id}")
 
@@ -537,24 +584,32 @@ def main():
     data_list = load_data(filepath)
     print(f"  Loaded {len(data_list)} records from {filepath}")
 
+    # swimmer/meet/event 的物理删除需要 results 列表（级联删除）
+    results_list = None
+    if entity in ('swimmer', 'meet', 'event') and action == 'delete':
+        results_list = load_data(DATA_FILES['result'])
+        print(f"  Loaded {len(results_list)} records from {DATA_FILES['result']} (cascade)")
+
     # 应用变更
     try:
         if entity == 'swimmer':
-            apply_swimmer_change(data_list, change)
+            apply_swimmer_change(data_list, results_list, change)
         elif entity == 'meet':
-            results = load_data(DATA_FILES['result'])
-            apply_meet_change(data_list, results, change)
+            apply_meet_change(data_list, results_list if results_list is not None else load_data(DATA_FILES['result']), change)
         elif entity == 'event':
-            apply_event_change(data_list, change)
+            apply_event_change(data_list, results_list, change)
         elif entity == 'result':
             apply_result_change(data_list, change)
     except ValueError as e:
         print(f"ERROR: {e}")
         sys.exit(1)
 
-    # 保存数据
+    # 保存数据（含级联删除后的 results 文件）
     save_data(filepath, data_list)
     print(f"  Saved {len(data_list)} records to {filepath}")
+    if results_list is not None:
+        save_data(DATA_FILES['result'], results_list)
+        print(f"  Saved {len(results_list)} records to {DATA_FILES['result']}")
     print(f"=== Data sync complete ===")
 
 if __name__ == '__main__':

@@ -99,9 +99,10 @@
     import { getAllSwimmers } from '../src/services/swimmerService.js';
     import { getAllEvents } from '../src/services/eventService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createResult, getPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
+    import { createResult, getPendingSyncs, clearPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
     import { hasLocalOverrides } from '../src/services/syncService.js';
     import { parseTime, formatTime } from '../src/utils/time.js';
+    import { initAllSearchableSelects } from '../src/components/searchableSelect.js';
 
     initPage();
 
@@ -153,6 +154,12 @@
           opt.value = s.id;
           opt.textContent = `${s.name}（${s.id}）`;
           swimmerSel.appendChild(opt);
+        });
+
+        // 为比赛/项目/运动员选择启用统一搜索组件
+        initAllSearchableSelects({
+          minLength: 8,
+          excludeIds: ['formStatus']
         });
 
         recentResults = [...results].sort((a, b) =>
@@ -225,14 +232,17 @@
 
     // 成功面板中的"提交到GitHub"按钮
     document.getElementById('btnSyncResult').addEventListener('click', () => {
-      if (pendingOps.length === 0) {
+      const legacy = getPendingSyncs();
+      const all = [...legacy, ...pendingOps];
+      if (all.length === 0) {
         showAlert('alertBox', '没有待同步的操作', 'info');
         return;
       }
-      submitBatchToGitHub(pendingOps);
+      submitBatchToGitHub(all);
       pendingOps = [];
+      clearPendingSyncs();
       updateSyncSection();
-      showAlert('alertBox', '已打开 GitHub Issue 页面，请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。', 'success');
+      showAlert('alertBox', `已打开 GitHub Issue 页面（含 ${all.length} 项操作），请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。`, 'success');
     });
 
     function renderRecent() {
@@ -273,14 +283,18 @@
     }
 
     document.getElementById('btnSubmitAll').addEventListener('click', () => {
-      if (pendingOps.length === 0) {
+      // 合并 sessionStorage 遗留操作与页面内操作，一次性提交并清空
+      const legacy = getPendingSyncs();
+      const all = [...legacy, ...pendingOps];
+      if (all.length === 0) {
         showAlert('alertBox', '没有待同步的操作', 'info');
         return;
       }
-      submitBatchToGitHub(pendingOps);
+      submitBatchToGitHub(all);
       pendingOps = [];
+      clearPendingSyncs();
       updateSyncSection();
-      showAlert('alertBox', '已打开 GitHub Issue 页面，请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。', 'success');
+      showAlert('alertBox', `已打开 GitHub Issue 页面（含 ${all.length} 项操作），请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。`, 'success');
     });
   </script>
 </body>

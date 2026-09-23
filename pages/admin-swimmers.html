@@ -138,7 +138,8 @@
     import { isAdmin } from '../src/services/authService.js';
     import { getAllSwimmers } from '../src/services/swimmerService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { createSwimmer, updateSwimmer, softDeleteSwimmer, hasSwimmerResults, getPendingSyncs, clearPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
+    import { createSwimmer, updateSwimmer, softDeleteSwimmer, hasSwimmerResults, deleteSwimmerPermanently, getPendingSyncs, clearPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
+    import { showHardDeleteConfirm } from '../src/components/confirmModal.js';
     import { hasLocalOverrides } from '../src/services/syncService.js';
 
     initPage();
@@ -190,7 +191,7 @@
       }
 
       tbody.innerHTML = swimmers.map(s => {
-        const hasResults = allResults.some(r => r.swimmerId === s.id);
+        const relatedCount = allResults.filter(r => r.swimmerId === s.id).length;
         const canDeactivate = s.status !== 'inactive';
         return `
         <tr>
@@ -206,6 +207,7 @@
           <td class="actions">
             <button class="btn btn-outline btn-sm" data-id="${escapeHtml(s.id)}" data-action="edit">编辑</button>
             ${canDeactivate ? `<button class="btn btn-danger btn-sm" data-id="${escapeHtml(s.id)}" data-action="deactivate">停用</button>` : ''}
+            <button class="btn btn-danger btn-sm" data-id="${escapeHtml(s.id)}" data-action="delete" data-count="${relatedCount}">删除</button>
           </td>
         </tr>
       `;
@@ -216,6 +218,9 @@
       });
       tbody.querySelectorAll('[data-action="deactivate"]').forEach(btn => {
         btn.addEventListener('click', () => deactivateSwimmer(btn.dataset.id));
+      });
+      tbody.querySelectorAll('[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', () => removeSwimmer(btn.dataset.id));
       });
     }
 
@@ -241,6 +246,33 @@
         showAlert('alertBox', `${swimmer.name} 已停用（历史成绩已保留）。点击底部"提交到GitHub"同步。`, 'success');
       } catch (err) {
         showAlert('alertBox', '停用失败: ' + err.message, 'error');
+      }
+    }
+
+    // 永久删除运动员（v2：物理删除 + 级联删除全部成绩，两步确认）
+    async function removeSwimmer(id) {
+      const swimmer = allSwimmers.find(s => s.id === id);
+      if (!swimmer) return;
+      const relatedCount = allResults.filter(r => r.swimmerId === id).length;
+
+      const ok = await showHardDeleteConfirm({
+        entityLabel: '运动员',
+        name: swimmer.name,
+        id,
+        resultCount: relatedCount
+      });
+      if (!ok) return;
+
+      try {
+        const { removedResults, operations } = await deleteSwimmerPermanently(id, '管理员永久删除');
+        allSwimmers = allSwimmers.filter(s => s.id !== id);
+        allResults = allResults.filter(r => r.swimmerId !== id);
+        pendingOps.push(...operations);
+        renderTable();
+        updateSyncSection();
+        showAlert('alertBox', `${swimmer.name} 已永久删除（含 ${removedResults} 条关联成绩）。点击底部"提交到GitHub"同步。`, 'success');
+      } catch (err) {
+        showAlert('alertBox', '删除失败: ' + err.message, 'error');
       }
     }
 
@@ -357,15 +389,19 @@
     }
 
     document.getElementById('btnSubmitAll').addEventListener('click', () => {
-      if (pendingOps.length === 0) {
+      // 合并 sessionStorage 遗留操作与页面内操作，一次性提交并清空
+      const legacy = getPendingSyncs();
+      const all = [...legacy, ...pendingOps];
+      if (all.length === 0) {
         showAlert('alertBox', '没有待同步的操作', 'info');
         return;
       }
       // 批量提交：合并为 1 个 Issue，一次性同步
-      submitBatchToGitHub(pendingOps);
+      submitBatchToGitHub(all);
       pendingOps = [];
+      clearPendingSyncs();
       updateSyncSection();
-      showAlert('alertBox', '已打开 GitHub Issue 页面，请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。', 'success');
+      showAlert('alertBox', `已打开 GitHub Issue 页面（含 ${all.length} 项操作），请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。`, 'success');
     });
   </script>
 </body>

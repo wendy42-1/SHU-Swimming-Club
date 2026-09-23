@@ -137,8 +137,8 @@ export function submitToGitHub(payload) {
  */
 export function submitBatchToGitHub(payloads, operator) {
   if (!payloads || payloads.length === 0) return '';
-  // 记录到 pending syncs
-  payloads.forEach(p => addPendingSync(p));
+  // 不再 addPendingSync：调用方已管理 pendingOps 和 clearPendingSyncs
+  // 重复 append 会导致 pendingSyncs 只增不减、UI 列表与实际提交不一致
   const url = buildBatchIssueUrl(payloads, operator || getOperator());
   window.open(url, '_blank');
   return url;
@@ -239,6 +239,57 @@ export async function hasSwimmerResults(swimmerId) {
   return results.some(r => r.swimmerId === swimmerId);
 }
 
+/**
+ * 统计实体关联成绩数量（用于删除确认弹窗）
+ * @param {string} entity - 'swimmer' | 'meet' | 'event'
+ * @param {string} id - 实体 ID
+ * @returns {Promise<number>} 关联成绩条数
+ */
+export async function countRelatedResults(entity, id) {
+  const results = await getCurrentData('results');
+  const fieldMap = { swimmer: 'swimmerId', meet: 'meetId', event: 'eventId' };
+  const field = fieldMap[entity];
+  if (!field) throw new Error('未知实体类型: ' + entity);
+  return results.filter(r => r[field] === id).length;
+}
+
+/**
+ * 物理删除运动员（关联成绩由后端级联删除）
+ *
+ * 规则（v2 需求）：
+ * - 真正物理删除，不使用 status=inactive
+ * - 关联成绩由 GitHub Actions 端基于仓库实时数据级联删除（避免前端快照过时漏删并发新增的成绩）
+ * - 本地覆盖层立即剔除运动员及其成绩（即时显示）
+ * - 前端只生成 1 条实体删除操作，后端负责级联，单 Issue 单事务保证原子性
+ *
+ * @param {string} id - 运动员 ID
+ * @param {string} reason - 删除原因
+ * @returns {Promise<{swimmer: Object, removedResults: number, operations: Array}>}
+ */
+export async function deleteSwimmerPermanently(id, reason) {
+  const swimmers = await getCurrentData('swimmers');
+  const idx = swimmers.findIndex(s => s.id === id);
+  if (idx === -1) throw new Error('运动员不存在: ' + id);
+  const swimmer = swimmers[idx];
+
+  // 级联：本地覆盖层同步剔除该运动员全部成绩（即时显示）
+  const results = await getCurrentData('results');
+  const related = results.filter(r => r.swimmerId === id);
+  if (related.length > 0) {
+    writeLocal('results', results.filter(r => r.swimmerId !== id));
+  }
+
+  // 本地覆盖层剔除运动员本身
+  writeLocal('swimmers', swimmers.filter(s => s.id !== id));
+
+  // 后端基于仓库实时数据级联删除成绩，前端只发 1 条实体删除操作
+  const operations = [
+    { action: 'delete', entity: 'swimmer', id, reason: reason || '永久删除运动员（后端级联删除成绩）' }
+  ];
+
+  return { swimmer, removedResults: related.length, operations };
+}
+
 // ============================================
 // 比赛管理
 // ============================================
@@ -323,30 +374,38 @@ export async function softDeleteMeet(id, reason) {
 }
 
 /**
- * 物理删除比赛（仅限无成绩的比赛）
+ * 物理删除比赛（v2：允许有成绩，关联成绩由后端级联删除）
  *
- * 规则：
- * - 有成绩的比赛禁止物理删除，只能停用（status=inactive）
- * - 无成绩的比赛可物理删除，但需前端二次确认
+ * 规则（v2 需求）：
+ * - 真正物理删除，有成绩的比赛同样可删（不再限制"仅无成绩"）
+ * - 关联成绩由 GitHub Actions 端基于仓库实时数据级联删除，不产生孤儿引用
+ * - 前端必须先经两步确认弹窗（显示级联数量）
  *
  * @param {string} id - 比赛 ID
- * @returns {Promise<boolean>} 是否删除成功
+ * @param {string} reason - 删除原因
+ * @returns {Promise<{meet: Object, removedResults: number, operations: Array}>}
  */
-export async function deleteMeet(id) {
+export async function deleteMeetPermanently(id, reason) {
   const meets = await getCurrentData('meets');
   const idx = meets.findIndex(m => m.id === id);
   if (idx === -1) throw new Error('比赛不存在: ' + id);
+  const meet = meets[idx];
 
-  // 检查是否有成绩
+  // 级联：本地覆盖层同步剔除该比赛全部成绩（即时显示）
   const results = await getCurrentData('results');
-  const hasResults = results.some(r => r.meetId === id);
-  if (hasResults) {
-    throw new Error('该比赛已有成绩记录，禁止物理删除，只能停用');
+  const related = results.filter(r => r.meetId === id);
+  if (related.length > 0) {
+    writeLocal('results', results.filter(r => r.meetId !== id));
   }
 
-  const updated = meets.filter((_, i) => i !== idx);
-  writeLocal('meets', updated);
-  return true;
+  // 本地覆盖层剔除比赛本身
+  writeLocal('meets', meets.filter(m => m.id !== id));
+
+  const operations = [
+    { action: 'delete', entity: 'meet', id, reason: reason || '永久删除比赛（后端级联删除成绩）' }
+  ];
+
+  return { meet, removedResults: related.length, operations };
 }
 
 /**
@@ -417,6 +476,41 @@ export async function updateEvent(id, updates) {
   updated[idx] = updatedItem;
   writeLocal('events', updated);
   return updatedItem;
+}
+
+/**
+ * 物理删除项目（关联成绩由后端级联删除）
+ *
+ * 规则（v2 需求）：
+ * - 真正物理删除，不使用 status=inactive
+ * - 关联成绩由 GitHub Actions 端基于仓库实时数据级联删除，不产生孤儿引用
+ * - 前端必须先经两步确认弹窗（显示级联数量）
+ *
+ * @param {string} id - 项目 ID
+ * @param {string} reason - 删除原因
+ * @returns {Promise<{event: Object, removedResults: number, operations: Array}>}
+ */
+export async function deleteEventPermanently(id, reason) {
+  const events = await getCurrentData('events');
+  const idx = events.findIndex(e => e.id === id);
+  if (idx === -1) throw new Error('项目不存在: ' + id);
+  const event = events[idx];
+
+  // 级联：本地覆盖层同步剔除该项目全部成绩（即时显示）
+  const results = await getCurrentData('results');
+  const related = results.filter(r => r.eventId === id);
+  if (related.length > 0) {
+    writeLocal('results', results.filter(r => r.eventId !== id));
+  }
+
+  // 本地覆盖层剔除项目本身
+  writeLocal('events', events.filter(e => e.id !== id));
+
+  const operations = [
+    { action: 'delete', entity: 'event', id, reason: reason || '永久删除项目（后端级联删除成绩）' }
+  ];
+
+  return { event, removedResults: related.length, operations };
 }
 
 // ============================================

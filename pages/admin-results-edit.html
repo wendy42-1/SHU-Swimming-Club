@@ -133,9 +133,10 @@
     import { getAllSwimmers } from '../src/services/swimmerService.js';
     import { getAllEvents } from '../src/services/eventService.js';
     import { getAllResults } from '../src/services/resultService.js';
-    import { updateResult, softDeleteResult, deleteResult, getPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
+    import { updateResult, softDeleteResult, deleteResult, getPendingSyncs, clearPendingSyncs, submitBatchToGitHub } from '../src/services/writeService.js';
     import { hasLocalOverrides } from '../src/services/syncService.js';
     import { parseTime, formatTime } from '../src/utils/time.js';
+    import { initAllSearchableSelects } from '../src/components/searchableSelect.js';
 
     initPage();
 
@@ -190,6 +191,9 @@
           opt.textContent = s.name;
           swimmerSel.appendChild(opt);
         });
+
+        // 为筛选栏启用统一搜索组件（选项数达标时自动生效）
+        initAllSearchableSelects({ minLength: 8 });
 
         renderTable();
         updateSyncSection();
@@ -366,14 +370,18 @@
     }
 
     document.getElementById('btnSubmitAll').addEventListener('click', () => {
-      if (pendingOps.length === 0) {
+      // 合并 sessionStorage 遗留操作与页面内操作，一次性提交并清空
+      const legacy = getPendingSyncs();
+      const all = [...legacy, ...pendingOps];
+      if (all.length === 0) {
         showAlert('alertBox', '没有待同步的操作', 'info');
         return;
       }
-      submitBatchToGitHub(pendingOps);
+      submitBatchToGitHub(all);
       pendingOps = [];
+      clearPendingSyncs();
       updateSyncSection();
-      showAlert('alertBox', '已打开 GitHub Issue 页面，请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。', 'success');
+      showAlert('alertBox', `已打开 GitHub Issue 页面（含 ${all.length} 项操作），请提交 1 个 Issue 即可。Actions 会一次性同步全部操作（约30-60秒）。`, 'success');
     });
   </script>
 </body>

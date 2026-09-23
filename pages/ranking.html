@@ -34,6 +34,7 @@
     import { getAllSwimmers } from '../src/services/swimmerService.js';
     import { formatTime } from '../src/utils/time.js';
     import { filterAndRank } from '../src/algorithms/ranking.js';
+    import { initAllSearchableSelects } from '../src/components/searchableSelect.js';
 
     initPage();
 
@@ -70,6 +71,9 @@
           opt.textContent = m.name;
           meetSel.appendChild(opt);
         });
+
+        // 为项目/比赛选择启用统一搜索组件
+        initAllSearchableSelects({ minLength: 8 });
       } catch (err) {
         document.getElementById('rankingContainer').innerHTML =
           `<div class="empty-state"><p>加载失败: ${escapeHtml(err.message)}</p></div>`;
