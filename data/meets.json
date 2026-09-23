@@ -22,8 +22,11 @@
     "name": "E2E_TEST_MEET",
     "date": "2026-10-01",
     "location": "测试",
-    "status": "scheduled",
+    "status": "inactive",
     "createdAt": "2026-09-23T01:31:23Z",
-    "createdBy": "admin"
+    "createdBy": "admin",
+    "updatedAt": "2026-09-23T01:42:57Z",
+    "updatedBy": "admin",
+    "updateReason": "E2E测试数据清理"
   }
 ]
