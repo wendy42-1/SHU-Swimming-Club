@@ -212,13 +212,16 @@
     "swimmerId": "ST002",
     "eventId": "E001",
     "meetId": "MT001",
-    "timeMs": 7361,
+    "timeMs": 6900,
     "status": "official",
     "createdAt": "2026-09-23T01:35:56Z",
     "createdBy": "admin",
-    "updatedAt": null,
-    "updatedBy": null,
-    "updateReason": null
+    "updatedAt": "2026-09-23T01:37:15Z",
+    "updatedBy": "admin",
+    "updateReason": "E2E并发测试设备B",
+    "previousValues": {
+      "timeMs": 7361
+    }
   },
   {
     "id": "RDFL59ZG3",
