@@ -197,14 +197,14 @@
     "eventId": "E001",
     "meetId": "MT001",
     "timeMs": 6700,
-    "status": "DQ",
+    "status": "deleted",
     "createdAt": "2026-09-23T01:35:56Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-23T01:42:57Z",
+    "updatedAt": "2026-09-23T01:44:08Z",
     "updatedBy": "admin",
     "updateReason": "E2E测试数据清理",
     "previousValues": {
-      "status": "official"
+      "status": "DQ"
     }
   },
   {
@@ -213,14 +213,14 @@
     "eventId": "E001",
     "meetId": "MT001",
     "timeMs": 6900,
-    "status": "DQ",
+    "status": "deleted",
     "createdAt": "2026-09-23T01:35:56Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-23T01:42:57Z",
+    "updatedAt": "2026-09-23T01:44:08Z",
     "updatedBy": "admin",
     "updateReason": "E2E测试数据清理",
     "previousValues": {
-      "status": "official"
+      "status": "DQ"
     }
   },
   {
@@ -229,14 +229,14 @@
     "eventId": "E001",
     "meetId": "MT001",
     "timeMs": 8158,
-    "status": "DQ",
+    "status": "deleted",
     "createdAt": "2026-09-23T01:35:56Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-23T01:42:57Z",
+    "updatedAt": "2026-09-23T01:44:08Z",
     "updatedBy": "admin",
     "updateReason": "E2E测试数据清理",
     "previousValues": {
-      "status": "official"
+      "status": "DQ"
     }
   },
   {
@@ -245,14 +245,14 @@
     "eventId": "E001",
     "meetId": "MT001",
     "timeMs": 8970,
-    "status": "DQ",
+    "status": "deleted",
     "createdAt": "2026-09-23T01:35:56Z",
     "createdBy": "admin",
-    "updatedAt": "2026-09-23T01:42:57Z",
+    "updatedAt": "2026-09-23T01:44:08Z",
     "updatedBy": "admin",
     "updateReason": "E2E测试数据清理",
     "previousValues": {
-      "status": "official"
+      "status": "DQ"
     }
   }
 ]
