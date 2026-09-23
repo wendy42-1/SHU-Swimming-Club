@@ -190,5 +190,41 @@
     "previousValues": {
       "status": "official"
     }
+  },
+  {
+    "id": "RDXPEBBW9",
+    "swimmerId": "S004",
+    "eventId": "E016",
+    "meetId": "M001",
+    "timeMs": 5899,
+    "status": "official",
+    "createdAt": "2026-09-23T10:02:49Z",
+    "createdBy": "admin",
+    "updatedAt": null,
+    "updatedBy": null,
+    "updateReason": null,
+    "rank": 1,
+    "autoTimeMs": 5899,
+    "autoTime": "00:05.899",
+    "finalTimeMs": 5899,
+    "finalTime": "00:05.899"
+  },
+  {
+    "id": "RDXPEBB7B",
+    "swimmerId": "S001",
+    "eventId": "E014",
+    "meetId": "M001",
+    "timeMs": 4321,
+    "status": "official",
+    "createdAt": "2026-09-23T10:02:49Z",
+    "createdBy": "admin",
+    "updatedAt": null,
+    "updatedBy": null,
+    "updateReason": null,
+    "rank": 1,
+    "autoTimeMs": 4321,
+    "autoTime": "00:04.321",
+    "finalTimeMs": 4321,
+    "finalTime": "00:04.321"
   }
 ]
