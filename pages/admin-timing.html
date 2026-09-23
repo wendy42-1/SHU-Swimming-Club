@@ -113,6 +113,15 @@
       font-size: 0.82rem; font-weight: 700; color: var(--primary, #1a73e8);
       margin: 10px 0 2px; padding-left: 2px;
     }
+    /* 运动员等级展示 */
+    .grade-cell { white-space: nowrap; }
+    .grade-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      background: var(--primary, #1a73e8); color: #fff;
+      font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+    }
+    .grade-muted { color: var(--text-secondary); font-size: 0.8rem; }
+    .grade-loading { color: var(--text-secondary); font-size: 0.8rem; font-style: italic; }
   </style>
 </head>
 <body>
@@ -145,6 +154,14 @@
           <select id="formMeet" required>
             <option value="">请选择比赛</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label for="formPoolType">泳池类型（用于等级判定）</label>
+          <select id="formPoolType">
+            <option value="50m_pool">50 米池</option>
+            <option value="25m_pool">25 米池</option>
+          </select>
+          <p class="section-hint" style="margin-top:4px;">等级标准按 50 米池 / 25 米池区分，默认 50 米池；仅影响「运动员等级」列的显示，不影响成绩保存。</p>
         </div>
         <button class="btn btn-primary btn-block" id="btnToRoster" disabled>下一步：配置测试名单</button>
       </div>
@@ -205,6 +222,7 @@
               <th>自动计时 (Split)</th>
               <th>最终成绩</th>
               <th>匹配 Split</th>
+              <th>运动员等级</th>
             </tr>
           </thead>
           <tbody id="confirmBody"></tbody>
@@ -229,6 +247,7 @@
     import { createResult, submitBatchToGitHub } from '../src/services/writeService.js';
     import { parseTime } from '../src/utils/time.js';
     import { initAllSearchableSelects } from '../src/components/searchableSelect.js';
+    import { getEligibleGrades } from '../src/algorithms/athleteGrade.js';
 
     initPage();
 
@@ -246,6 +265,9 @@
     let currentMeetId = '';
     let rafId = null;
     let syncInProgress = false;
+    // 等级计算相关：泳池类型 + 每行等级展示缓存（避免重复计算）
+    let poolType = '50m_pool';
+    let gradeCache = {};        // `${sid}|${eid}` -> { highestGrade, note, timeMs }
 
     const LS_TESTS = 'swim_test_timing_sessions';
 
@@ -294,8 +316,17 @@
           eventSelAll.appendChild(opt);
         });
 
-        // 搜索组件接入：formMeet / formEventAll 选项数 ≥8 时启用搜索
-        initAllSearchableSelects({ minLength: 8 });
+        // 搜索组件接入：formMeet / formEventAll 选项数 ≥8 时启用搜索（池型固定 2 项无需搜索）
+        initAllSearchableSelects({ minLength: 8, excludeIds: ['formPoolType'] });
+
+        // 池型变化：清除等级缓存并重算当前确认表
+        document.getElementById('formPoolType').addEventListener('change', (e) => {
+          poolType = e.target.value;
+          gradeCache = {};
+          if (status === 'stopped' && document.getElementById('confirmCard').style.display === 'block') {
+            renderConfirmStage();
+          }
+        });
 
         renderSwimmerPicks();
         status = 'ready';
@@ -683,9 +714,12 @@
       finalTimes = {};
       rankMap = {};
       currentMeetId = '';
+      gradeCache = {};
       document.getElementById('timerDisplay').textContent = '00:00.000';
       document.getElementById('formMeet').value = '';
       document.getElementById('formEventAll').value = '';
+      document.getElementById('formPoolType').value = '50m_pool';
+      poolType = '50m_pool';
       renderSwimmerPicks();
       renderRosterRows();
       updateTimerButtons();
@@ -777,12 +811,58 @@
       });
     }
 
+    // ============ 运动员等级计算（仅管理员可见，纯展示不落库） ============
+    // 复用 src/algorithms/athleteGrade.js 的 getEligibleGrades()
+    // 必须先确定 eventId（项目）再按对应项目标准判断；泳池类型来自 formPoolType
+    async function computeGradeFor(sid, eid, ms) {
+      const k = keyOf(sid, eid);
+      const swimmer = allSwimmers.find(s => s.id === sid);
+      if (!swimmer) return { highestGrade: null, note: '运动员不存在' };
+      // 接力项目无个人技术等级标准，直接提示
+      const ev = allEvents.find(e => e.id === eid);
+      if (ev && ev.type === 'relay') {
+        return { highestGrade: null, note: '暂无对应等级标准', timeMs: ms };
+      }
+      // 复用缓存：同一运动员+项目+成绩 不重复计算
+      const cached = gradeCache[k];
+      if (cached && cached.timeMs === ms) return cached;
+      try {
+        const result = await getEligibleGrades({
+          gender: swimmer.gender,
+          eventId: eid,
+          timeMs: ms,
+          poolType
+        });
+        const entry = {
+          highestGrade: result.highestGrade,
+          note: result.note,
+          timeMs: ms
+        };
+        gradeCache[k] = entry;
+        return entry;
+      } catch (err) {
+        return { highestGrade: null, note: '该成绩无法判定等级', error: err.message, timeMs: ms };
+      }
+    }
+
+    // 等级展示文案
+    function gradeCellText(entry) {
+      if (!entry) return '—';
+      if (entry.highestGrade) {
+        return `<span class="grade-badge" title="${escapeHtml(entry.highestGrade.label)}">${escapeHtml(entry.highestGrade.label)}</span>`;
+      }
+      if (entry.note) return `<span class="grade-muted" title="${escapeHtml(entry.note)}">${escapeHtml(entry.note)}</span>`;
+      if (entry.error) return `<span class="grade-muted">计算失败</span>`;
+      return `<span class="grade-muted">未达到等级标准</span>`;
+    }
+
     function renderConfirmStage() {
       const body = document.getElementById('confirmBody');
       const matchedKeys = new Set(Object.values(matchMap));
 
       // 按项目分组渲染
       let html = '';
+      const gradePromises = [];
       selectedSwimmerIds.forEach(sid => {
         const eid = swimmerEvents[sid];
         const k = keyOf(sid, eid);
@@ -793,6 +873,10 @@
         const autoTime = split ? split.autoTime : '—';
         const rank = rankMap[k] || '';
         const finalVal = finalTimes[k] !== undefined ? formatMMSSmmm(finalTimes[k]) : (autoTime !== '—' ? autoTime : '');
+        // 等级展示：异步计算，先显示占位
+        const gradePlaceholder = split
+          ? '<span class="grade-loading">计算中…</span>'
+          : '<span class="grade-muted">—</span>';
         html += `
           <tr>
             <td>${escapeHtml(ename)}</td>
@@ -811,10 +895,23 @@
                 }).join('')}
               </select>
             </td>
+            <td class="grade-cell" data-grade-cell="${k}">${gradePlaceholder}</td>
           </tr>
         `;
+        // 触发等级异步计算
+        if (split) {
+          const ms = finalTimes[k] !== undefined ? finalTimes[k] : split.elapsedMs;
+          gradePromises.push({ k, sid, eid, ms });
+        }
       });
       body.innerHTML = html;
+
+      // 异步填充等级列
+      gradePromises.forEach(async ({ k, sid, eid, ms }) => {
+        const entry = await computeGradeFor(sid, eid, ms);
+        const cell = body.querySelector(`[data-grade-cell="${k}"]`);
+        if (cell) cell.innerHTML = gradeCellText(entry);
+      });
 
       // 名次输入（可重新指定）
       body.querySelectorAll('[data-rank]').forEach(inp => {
@@ -840,16 +937,29 @@
           const val = inp.value.trim();
           if (!val) {
             delete finalTimes[k];
-            return;
+          } else {
+            try {
+              const ms = parseTime(val);
+              finalTimes[k] = ms;
+              inp.value = formatMMSSmmm(ms);
+              showAlert('alertBox', `最终成绩已更新: ${val}（自动计时不受影响）`, 'success');
+            } catch (err) {
+              showAlert('alertBox', `${err.message}`, 'error');
+              inp.value = finalTimes[k] !== undefined ? formatMMSSmmm(finalTimes[k]) : '';
+              return;
+            }
           }
-          try {
-            const ms = parseTime(val);
-            finalTimes[k] = ms;
-            inp.value = formatMMSSmmm(ms);
-            showAlert('alertBox', `最终成绩已更新: ${val}（自动计时不受影响）`, 'success');
-          } catch (err) {
-            showAlert('alertBox', `${err.message}`, 'error');
-            inp.value = finalTimes[k] !== undefined ? formatMMSSmmm(finalTimes[k]) : '';
+          // 最终成绩变化 → 重算该行等级
+          const cell = body.querySelector(`[data-grade-cell="${k}"]`);
+          if (cell) cell.innerHTML = '<span class="grade-loading">计算中…</span>';
+          const sid = k.split('|')[0], eid = k.split('|')[1];
+          const split = matchMap[k] !== undefined ? splits.find(s => s.index === matchMap[k]) : null;
+          if (split) {
+            const ms = finalTimes[k] !== undefined ? finalTimes[k] : split.elapsedMs;
+            computeGradeFor(sid, eid, ms).then(entry => {
+              const c = body.querySelector(`[data-grade-cell="${k}"]`);
+              if (c) c.innerHTML = gradeCellText(entry);
+            });
           }
         });
       });
@@ -877,6 +987,9 @@
           updateWarns();
         });
       });
+
+      // 补全：确认阶段匹配 Split 下拉也接入统一搜索（选项数 ≥3 时启用）
+      initAllSearchableSelects({ minLength: 3, force: false, excludeIds: ['formPoolType'] });
 
       updateWarns();
     }
