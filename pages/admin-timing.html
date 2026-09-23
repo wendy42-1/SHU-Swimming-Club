@@ -74,17 +74,28 @@
     .confirm-table .auto-time { font-variant-numeric: tabular-nums; font-weight: 600; }
     .end-options { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
     .end-options .btn { flex: 1; min-width: 160px; }
-    .swimmer-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-top: 6px; }
-    .swimmer-pick label {
-      display: flex; align-items: center; gap: 6px;
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.88rem;
-      background: var(--card-bg, #fff);
+    /* 运动员搜索多选（复用全局 .ss-* 视觉风格） */
+    .swimmer-search-wrapper { position: relative; }
+    .swimmer-selected-tags {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-height: 36px;
     }
-    .swimmer-pick label.selected { border-color: var(--primary, #1a73e8); background: rgba(26, 115, 232, 0.06); }
+    .swimmer-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 5px 10px; border-radius: 20px;
+      background: rgba(26, 115, 232, 0.08);
+      border: 1px solid var(--primary, #1a73e8);
+      color: var(--primary-dark, #1557b0);
+      font-size: 0.85rem; font-weight: 500;
+    }
+    .swimmer-tag-remove {
+      border: none; background: none; cursor: pointer;
+      font-size: 1.1rem; line-height: 1; padding: 0;
+      color: inherit; opacity: 0.6; margin-left: 2px;
+    }
+    .swimmer-tag-remove:hover { opacity: 1; }
+    .swimmer-tags-empty {
+      font-size: 0.85rem; color: var(--text-secondary); padding: 6px 0;
+    }
     .roster-row {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
       padding: 8px 0; border-bottom: 1px solid var(--border);
@@ -142,11 +153,11 @@
       <div class="card" id="rosterCard" style="margin-top:16px;display:none;">
         <h2 class="section-title" style="border:none;margin-bottom:4px;">2. 选择运动员并匹配项目</h2>
         <p class="section-hint">
-          先勾选参赛运动员，再为每人选择要测试的项目（可各不相同）。多人测同一项目时可一键应用到全部。
+          先搜索并选择参赛运动员，再为每人匹配项目（可各不相同）。多人测同一项目时可一键应用到全部。
           开始计时后名单和项目将被锁定，直到停止或放弃。
         </p>
         <div class="form-group">
-          <label>参赛运动员 *（可多选，至少 1 人）</label>
+          <label>参赛运动员 *（搜索选择，可多选，至少 1 人）</label>
           <div class="swimmer-pick" id="swimmerPicks"></div>
         </div>
         <div class="form-group" id="eventApplyRow" style="display:none;">
@@ -295,31 +306,161 @@
       }
     }
 
-    // ============ 第 2 步：运动员选择 + 每人项目匹配 ============
+    // ============ 第 2 步：运动员搜索多选 + 每人项目匹配 ============
+    let swimmerSearchInitialized = false;
+
     function renderSwimmerPicks() {
       const box = document.getElementById('swimmerPicks');
-      box.innerHTML = allSwimmers.map(s => {
-        const checked = selectedSwimmerIds.includes(s.id) ? 'checked' : '';
+
+      if (!swimmerSearchInitialized) {
+        // 首次构建搜索组件结构并绑定事件
+        box.innerHTML = `
+          <div class="ss-wrapper swimmer-search-wrapper">
+            <input type="text" class="ss-input" id="swimmerSearchInput"
+                   placeholder="输入姓名或学号搜索运动员…" autocomplete="off" role="textbox">
+            <div class="ss-dropdown" id="swimmerSearchDropdown" role="listbox"></div>
+          </div>
+          <div class="swimmer-selected-tags" id="swimmerSelectedTags"></div>
+        `;
+
+        const input = document.getElementById('swimmerSearchInput');
+        const dropdown = document.getElementById('swimmerSearchDropdown');
+        let isOpen = false;
+        let highlightIndex = -1;
+
+        function openDropdown() {
+          isOpen = true;
+          dropdown.classList.add('open');
+          filterSwimmers(input.value);
+          input.focus();
+        }
+
+        function closeDropdown() {
+          isOpen = false;
+          dropdown.classList.remove('open');
+          highlightIndex = -1;
+        }
+
+        function applyHighlight(scroll = true) {
+          const nodes = dropdown.querySelectorAll('.ss-option[data-id]');
+          nodes.forEach(el => el.classList.remove('ss-highlight'));
+          if (nodes[highlightIndex]) {
+            nodes[highlightIndex].classList.add('ss-highlight');
+            if (scroll) nodes[highlightIndex].scrollIntoView({ block: 'nearest' });
+          }
+        }
+
+        function filterSwimmers(query) {
+          query = (query || '').trim().toLowerCase();
+          if (!query) {
+            dropdown.innerHTML = '<div class="ss-empty">请输入关键词搜索运动员</div>';
+            highlightIndex = -1;
+            return;
+          }
+          const matched = allSwimmers.filter(s =>
+            s.name.toLowerCase().includes(query) ||
+            String(s.id).toLowerCase().includes(query)
+          );
+          if (matched.length === 0) {
+            dropdown.innerHTML = '<div class="ss-empty">未找到匹配的运动员</div>';
+            highlightIndex = -1;
+            return;
+          }
+          dropdown.innerHTML = matched.map(s => {
+            const isSelected = selectedSwimmerIds.includes(s.id);
+            return `
+              <div class="ss-option${isSelected ? ' ss-selected' : ''}" data-id="${s.id}" role="option">
+                ${escapeHtml(s.name)}（${s.id}）${isSelected ? ' ✓ 已选择' : ''}
+              </div>
+            `;
+          }).join('');
+          highlightIndex = 0;
+          applyHighlight(false);
+        }
+
+        function selectSwimmer(id) {
+          if (!selectedSwimmerIds.includes(id)) {
+            selectedSwimmerIds.push(id);
+            renderRosterRows();
+            updateConfigState();
+            renderSelectedTags();
+          }
+          input.value = '';
+          filterSwimmers('');
+          input.focus();
+        }
+
+        // 事件绑定
+        input.addEventListener('focus', openDropdown);
+        input.addEventListener('input', () => {
+          if (!isOpen) openDropdown();
+          filterSwimmers(input.value);
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!isOpen) { openDropdown(); return; }
+            const nodes = dropdown.querySelectorAll('.ss-option[data-id]');
+            const dir = e.key === 'ArrowDown' ? 1 : -1;
+            const next = highlightIndex + dir;
+            if (next >= 0 && next < nodes.length) {
+              highlightIndex = next;
+              applyHighlight();
+            }
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const nodes = dropdown.querySelectorAll('.ss-option[data-id]');
+            if (highlightIndex >= 0 && highlightIndex < nodes.length) {
+              selectSwimmer(nodes[highlightIndex].dataset.id);
+            }
+          } else if (e.key === 'Escape') {
+            closeDropdown();
+          }
+        });
+
+        dropdown.addEventListener('click', (e) => {
+          const item = e.target.closest('.ss-option[data-id]');
+          if (item) selectSwimmer(item.dataset.id);
+        });
+
+        document.addEventListener('click', (e) => {
+          if (!box.contains(e.target)) closeDropdown();
+        });
+
+        swimmerSearchInitialized = true;
+      } else {
+        // 重置时仅清空搜索框
+        const input = document.getElementById('swimmerSearchInput');
+        if (input) input.value = '';
+      }
+
+      renderSelectedTags();
+    }
+
+    function renderSelectedTags() {
+      const tagsBox = document.getElementById('swimmerSelectedTags');
+      if (!tagsBox) return;
+      if (selectedSwimmerIds.length === 0) {
+        tagsBox.innerHTML = '<span class="swimmer-tags-empty">尚未选择运动员</span>';
+        return;
+      }
+      tagsBox.innerHTML = selectedSwimmerIds.map(id => {
+        const name = swimmerNames[id] || id;
         return `
-          <label class="${checked ? 'selected' : ''}" data-id="${s.id}">
-            <input type="checkbox" value="${s.id}" ${checked}>
-            <span>${escapeHtml(s.name)}（${s.id}）</span>
-          </label>
+          <span class="swimmer-tag" data-id="${id}">
+            ${escapeHtml(name)}（${id}）
+            <button type="button" class="swimmer-tag-remove" data-id="${id}" title="移除">&times;</button>
+          </span>
         `;
       }).join('');
-      box.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        cb.addEventListener('change', () => {
-          const id = cb.value;
-          if (cb.checked) {
-            if (!selectedSwimmerIds.includes(id)) selectedSwimmerIds.push(id);
-          } else {
-            selectedSwimmerIds = selectedSwimmerIds.filter(x => x !== id);
-            delete swimmerEvents[id];
-          }
-          const label = cb.closest('label');
-          if (label) label.classList.toggle('selected', cb.checked);
+      tagsBox.querySelectorAll('.swimmer-tag-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          selectedSwimmerIds = selectedSwimmerIds.filter(x => x !== id);
+          delete swimmerEvents[id];
           renderRosterRows();
           updateConfigState();
+          renderSelectedTags();
         });
       });
     }
@@ -407,7 +548,7 @@
       currentMeetId = meet;
       document.getElementById('configCard').style.display = 'none';
       document.getElementById('rosterCard').style.display = 'block';
-      showAlert('alertBox', '已进入名单配置，请勾选运动员并为每人匹配项目。', 'info');
+      showAlert('alertBox', '已进入名单配置，请搜索选择运动员并为每人匹配项目。', 'info');
     });
 
     // ============ 计时核心（统一计时器，Split 不绑定运动员） ============
