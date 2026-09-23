@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>测试计时 - 鼠智赛事通</title>
+  <link rel="stylesheet" href="../assets/css/style.css">
+  <style>
+    /* 测试计时专用样式（仅本页，不污染全局） */
+    .timer-display {
+      font-size: 3.2rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 1px;
+      text-align: center;
+      font-family: "Consolas", "Courier New", monospace;
+      color: var(--primary, #1a73e8);
+      padding: 20px 0 8px;
+      line-height: 1.2;
+    }
+    .timer-state {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+    .timer-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 16px 0 8px;
+    }
+    .timer-actions .btn { min-width: 110px; }
+    .split-list { margin-top: 12px; }
+    .split-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .split-item:last-child { border-bottom: none; }
+    .split-index { font-weight: 700; color: var(--text-secondary); min-width: 34px; }
+    .split-time { font-variant-numeric: tabular-nums; font-weight: 600; flex: 1; text-align: center; }
+    .split-diff { color: var(--text-secondary); font-size: 0.8rem; min-width: 90px; text-align: right; }
+    .split-actions { display: flex; gap: 6px; }
+    .match-select { max-width: 200px; }
+    .count-warn {
+      border: 1px solid var(--warning, #f59e0b);
+      background: rgba(255, 193, 7, 0.08);
+      color: var(--warning, #b45309);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin: 10px 0;
+    }
+    .confirm-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .confirm-table th, .confirm-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: middle;
+    }
+    .confirm-table th { color: var(--text-secondary); font-weight: 600; font-size: 0.82rem; }
+    .confirm-table input[type="text"] {
+      width: 110px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .confirm-table .auto-time { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .end-options { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .end-options .btn { flex: 1; min-width: 160px; }
+    .swimmer-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-top: 6px; }
+    .swimmer-pick label {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      background: var(--card-bg, #fff);
+    }
+    .swimmer-pick label.selected { border-color: var(--primary, #1a73e8); background: rgba(26, 115, 232, 0.06); }
+    .sync-status-line { font-size: 0.85rem; margin-top: 8px; line-height: 1.6; }
+    .result-badge-saved { color: var(--success, #2d8659); }
+    .result-badge-failed { color: #c62828; }
+    .section-hint { font-size: 0.82rem; color: var(--text-secondary); margin: 4px 0 10px; }
+  </style>
+</head>
+<body>
+  <div class="navbar" id="navbar"></div>
+
+  <div class="container">
+    <h1 class="page-title">测试计时</h1>
+
+    <div class="local-storage-notice">
+      <strong>提示</strong>
+      测试计时使用高精度 performance.now()，Split 计次后需手动匹配运动员。测试成绩默认仅保存在本地，可一键转为正式成绩（经 GitHub 批量同步，一次 Issue）。
+    </div>
+
+    <div id="accessDenied" style="display:none;">
+      <div class="empty-state">
+        <div class="empty-state-icon">🔒</div>
+        <p id="accessDeniedText">请以管理员身份登录后访问此页面</p>
+      </div>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div id="alertBox"></div>
+
+      <!-- 配置区 -->
+      <div class="card" id="configCard">
+        <h2 class="section-title" style="border:none;margin-bottom:4px;">1. 选择测试配置</h2>
+        <p class="section-hint">比赛为必选，项目为必选，至少选择 1 名运动员。</p>
+        <div class="form-group">
+          <label for="formMeet">比赛 *</label>
+          <select id="formMeet" required>
+            <option value="">请选择比赛</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="formEvent">项目 *</label>
+          <select id="formEvent" required>
+            <option value="">请选择项目</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>参赛运动员 *（可多选，至少 1 人）</label>
+          <div class="swimmer-pick" id="swimmerPicks"></div>
+        </div>
+        <button class="btn btn-primary btn-block" id="btnStartConfig">开始计时</button>
+      </div>
+
+      <!-- 计时区 -->
+      <div class="card" id="timerCard" style="margin-top:16px;display:none;">
+        <h2 class="section-title" style="border:none;margin-bottom:4px;">2. 计时</h2>
+        <div class="timer-display" id="timerDisplay">00:00.000</div>
+        <div class="timer-state" id="timerState">就绪</div>
+        <div class="timer-actions">
+          <button class="btn btn-primary" id="btnStart" disabled>开始</button>
+          <button class="btn btn-outline" id="btnSplit" disabled>计次 (Split)</button>
+          <button class="btn btn-outline" id="btnStop" disabled>停止</button>
+          <button class="btn btn-outline" id="btnUndo" disabled>撤销最后一次</button>
+          <button class="btn btn-outline" id="btnRestart">重新开始</button>
+        </div>
+        <div class="split-list" id="splitList"></div>
+        <div class="count-warn" id="countWarn" style="display:none;"></div>
+      </div>
+
+      <!-- 匹配与确认区 -->
+      <div class="card" id="confirmCard" style="margin-top:16px;display:none;">
+        <h2 class="section-title" style="border:none;margin-bottom:4px;">3. Split 匹配与成绩确认</h2>
+        <p class="section-hint">
+          自动计时（只读）与最终成绩（可编辑）分开显示；修改最终成绩不会覆盖原始自动计时。一个运动员默认匹配一个 Split，可手动调整匹配（不重新计时、不改动自动时间）。
+        </p>
+        <table class="confirm-table" id="confirmTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>运动员</th>
+              <th>自动计时 (Split)</th>
+              <th>最终成绩</th>
+              <th>匹配 Split</th>
+            </tr>
+          </thead>
+          <tbody id="confirmBody"></tbody>
+        </table>
+        <div class="count-warn" id="confirmWarn" style="display:none;"></div>
+        <div class="end-options">
+          <button class="btn btn-primary" id="btnSaveOfficial">保存为正式成绩</button>
+          <button class="btn btn-outline" id="btnSaveLocal">仅保存本次测试</button>
+          <button class="btn btn-outline" id="btnDiscard">放弃本次测试</button>
+        </div>
+        <div class="sync-status-line" id="syncStatusLine"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initPage, escapeHtml, showAlert, formatDate, genderName } from '../assets/js/app.js';
+    import { isAdmin, hasPermission } from '../src/services/authService.js';
+    import { getAllMeets } from '../src/services/meetService.js';
+    import { getAllSwimmers } from '../src/services/swimmerService.js';
+    import { getAllEvents } from '../src/services/eventService.js';
+    import { createResult, submitBatchToGitHub } from '../src/services/writeService.js';
+    import { parseTime } from '../src/utils/time.js';
+
+    initPage();
+
+    // ============ 状态 ============
+    // status: idle(初始) | ready(配置完成) | running(计时中) | stopped(已停止)
+    let status = 'idle';
+    let startTime = 0;            // performance.now() 基准
+    let elapsedMs = 0;            // 内部整数毫秒
+    let splits = [];              // { index, elapsedMs, autoTime }
+    let selectedSwimmerIds = [];  // 选中的运动员 ID
+    let matchMap = {};            // swimmerId -> splitIndex
+    let finalTimes = {};          // swimmerId -> 最终成绩毫秒（用户修改）
+    let currentMeetId = '';
+    let currentEventId = '';
+    let rafId = null;
+    let syncInProgress = false;
+
+    const LS_TESTS = 'swim_test_timing_sessions';
+
+    let allMeets = [], allEvents = [], allSwimmers = [];
+    let meetNames = {}, eventNames = {}, swimmerNames = {};
+
+    // ============ 权限守卫 ============
+    if (!isAdmin()) {
+      document.getElementById('accessDenied').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    } else if (!hasPermission('addResult')) {
+      document.getElementById('accessDeniedText').textContent = '当前账号无测试计时权限（需要 addResult 权限）。';
+      document.getElementById('accessDenied').style.display = 'block';
+      document.getElementById('adminPanel').style.display = 'none';
+    } else {
+      document.getElementById('accessDenied').style.display = 'none';
+      document.getElementById('adminPanel').style.display = 'block';
+      init();
+    }
+
+    async function init() {
+      try {
+        const [meets, swimmers, events] = await Promise.all([
+          getAllMeets(), getAllSwimmers(), getAllEvents()
+        ]);
+        allMeets = meets;
+        allSwimmers = swimmers.filter(s => s.status === 'active');
+        allEvents = events;
+
+        meets.forEach(m => meetNames[m.id] = m.name);
+        events.forEach(e => eventNames[e.id] = e.name);
+        swimmers.forEach(s => swimmerNames[s.id] = s.name);
+
+        const meetSel = document.getElementById('formMeet');
+        meets.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = `${m.name} (${formatDate(m.date)})`;
+          meetSel.appendChild(opt);
+        });
+
+        const eventSel = document.getElementById('formEvent');
+        events.forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.id;
+          opt.textContent = `${e.name} (${genderName(e.gender)})`;
+          eventSel.appendChild(opt);
+        });
+
+        renderSwimmerPicks();
+        status = 'ready';
+        updateTimerState();
+        updateConfigState();
+      } catch (err) {
+        showAlert('alertBox', '数据加载失败: ' + err.message, 'error');
+      }
+    }
+
+    // ============ 配置区 ============
+    function renderSwimmerPicks() {
+      const box = document.getElementById('swimmerPicks');
+      box.innerHTML = allSwimmers.map(s => {
+        const checked = selectedSwimmerIds.includes(s.id) ? 'checked' : '';
+        return `
+          <label class="${checked ? 'selected' : ''}" data-id="${s.id}">
+            <input type="checkbox" value="${s.id}" ${checked}>
+            <span>${escapeHtml(s.name)}（${s.id}）</span>
+          </label>
+        `;
+      }).join('');
+      box.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const id = cb.value;
+          if (cb.checked) {
+            if (!selectedSwimmerIds.includes(id)) selectedSwimmerIds.push(id);
+          } else {
+            selectedSwimmerIds = selectedSwimmerIds.filter(x => x !== id);
+          }
+          const label = cb.closest('label');
+          if (label) label.classList.toggle('selected', cb.checked);
+          updateConfigState();
+        });
+      });
+    }
+
+    function updateConfigState() {
+      const meet = document.getElementById('formMeet').value;
+      const event = document.getElementById('formEvent').value;
+      const canStart = !!(meet && event && selectedSwimmerIds.length >= 1);
+      document.getElementById('btnStartConfig').disabled = !canStart;
+    }
+
+    // ============ 计时核心 ============
+    function formatMMSSmmm(ms) {
+      const total = Math.floor(ms);
+      const min = Math.floor(total / 60000);
+      const sec = Math.floor((total % 60000) / 1000);
+      const milli = total % 1000;
+      return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${String(milli).padStart(3, '0')}`;
+    }
+
+    function tick() {
+      if (status !== 'running') return;
+      elapsedMs = Math.floor(performance.now() - startTime);
+      document.getElementById('timerDisplay').textContent = formatMMSSmmm(elapsedMs);
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function startTimer() {
+      // 重复开始保护
+      if (status === 'running') {
+        showAlert('alertBox', '计时已在进行中，请先停止或重新开始', 'warning');
+        return;
+      }
+      const meet = document.getElementById('formMeet').value;
+      const event = document.getElementById('formEvent').value;
+      if (!meet || !event || selectedSwimmerIds.length === 0) {
+        showAlert('alertBox', '请先选择比赛、项目和至少 1 名运动员', 'warning');
+        return;
+      }
+      currentMeetId = meet;
+      currentEventId = event;
+      splits = [];
+      matchMap = {};
+      finalTimes = {};
+      status = 'running';
+      startTime = performance.now();
+      elapsedMs = 0;
+      document.getElementById('timerDisplay').textContent = '00:00.000';
+      document.getElementById('configCard').style.display = 'none';
+      document.getElementById('timerCard').style.display = 'block';
+      document.getElementById('confirmCard').style.display = 'none';
+      renderSplits();
+      updateTimerButtons();
+      updateTimerState();
+      showAlert('alertBox', '计时已开始，点击"计次"记录分段。', 'info');
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function recordSplit() {
+      if (status !== 'running') return;
+      const nowMs = Math.floor(performance.now() - startTime);
+      splits.push({
+        index: splits.length + 1,
+        elapsedMs: nowMs,
+        autoTime: formatMMSSmmm(nowMs)
+      });
+      renderSplits();
+      updateTimerButtons();
+    }
+
+    function stopTimer() {
+      if (status !== 'running') return;
+      elapsedMs = Math.floor(performance.now() - startTime);
+      status = 'stopped';
+      if (rafId) cancelAnimationFrame(rafId);
+      document.getElementById('timerDisplay').textContent = formatMMSSmmm(elapsedMs);
+      updateTimerButtons();
+      updateTimerState();
+      renderSplits();
+      enterConfirmStage();
+    }
+
+    function undoLastSplit() {
+      if (splits.length === 0) {
+        showAlert('alertBox', '当前没有可撤销的计次', 'info');
+        return;
+      }
+      const removed = splits.pop();
+      renderSplits();
+      updateTimerButtons();
+      // 若已停止，重新进入确认区（清理指向被删 split 的匹配）
+      cleanupMatchMap();
+      if (status === 'stopped') enterConfirmStage();
+      showAlert('alertBox', `已撤销最后一次计次（#${removed.index} ${removed.autoTime}）`, 'success');
+    }
+
+    function deleteSplit(splitIndex) {
+      if (status === 'running') {
+        showAlert('alertBox', '计时进行中不能删除计次，请先停止', 'warning');
+        return;
+      }
+      const target = splits.find(s => s.index === splitIndex);
+      if (!target) return;
+      if (!confirm(`确定删除第 ${splitIndex} 次计次（${target.autoTime}）？其他计次的时间不受影响。`)) return;
+      splits = splits.filter(s => s.index !== splitIndex);
+      splits.forEach((s, i) => s.index = i + 1);
+      cleanupMatchMap();
+      renderSplits();
+      enterConfirmStage();
+      showAlert('alertBox', `已删除第 ${splitIndex} 次计次`, 'success');
+    }
+
+    // 清理 matchMap 中指向不存在 split 的映射
+    function cleanupMatchMap() {
+      const validIndexes = new Set(splits.map(s => s.index));
+      Object.keys(matchMap).forEach(sid => {
+        if (!validIndexes.has(matchMap[sid])) delete matchMap[sid];
+      });
+    }
+
+    function resetAll() {
+      if (rafId) cancelAnimationFrame(rafId);
+      status = 'ready';
+      startTime = 0;
+      elapsedMs = 0;
+      splits = [];
+      selectedSwimmerIds = [];
+      matchMap = {};
+      finalTimes = {};
+      currentMeetId = '';
+      currentEventId = '';
+      document.getElementById('timerDisplay').textContent = '00:00.000';
+      document.getElementById('formMeet').value = '';
+      document.getElementById('formEvent').value = '';
+      renderSwimmerPicks();
+      updateTimerButtons();
+      updateTimerState();
+      updateConfigState();
+      document.getElementById('syncStatusLine').innerHTML = '';
+    }
+
+    // ============ Split 列表 ============
+    function renderSplits() {
+      const list = document.getElementById('splitList');
+      if (splits.length === 0) {
+        list.innerHTML = '<div class="empty-state" style="padding:12px;">暂无计次记录</div>';
+        return;
+      }
+      list.innerHTML = splits.map(s => {
+        const prev = splits[s.index - 2];
+        const diff = prev ? `+${formatMMSSmmm(s.elapsedMs - prev.elapsedMs)}` : '—';
+        return `
+          <div class="split-item">
+            <div class="split-index">#${s.index}</div>
+            <div class="split-time">${s.autoTime}</div>
+            <div class="split-diff">${diff}</div>
+            <div class="split-actions">
+              <button class="btn btn-sm btn-outline" data-del="${s.index}">删除</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      list.querySelectorAll('[data-del]').forEach(btn => {
+        btn.addEventListener('click', () => deleteSplit(parseInt(btn.dataset.del, 10)));
+      });
+    }
+
+    function updateTimerButtons() {
+      const running = status === 'running';
+      // 开始按钮：running 时禁用（防止重复开始）；stopped 后应通过"重新开始"重置，因此也禁用
+      document.getElementById('btnStart').disabled = running || status === 'stopped';
+      document.getElementById('btnSplit').disabled = !running;
+      document.getElementById('btnStop').disabled = !running;
+      document.getElementById('btnUndo').disabled = splits.length === 0;
+      document.getElementById('btnRestart').disabled = false;
+    }
+
+    function updateTimerState() {
+      const el = document.getElementById('timerState');
+      const map = {
+        idle: '未配置',
+        ready: '就绪，可开始',
+        running: '计时中',
+        stopped: '已停止'
+      };
+      el.textContent = map[status] || status;
+    }
+
+    // ============ 匹配与确认 ============
+    function enterConfirmStage() {
+      if (status !== 'stopped') return;
+      // 首次进入（或匹配为空）时按顺序默认匹配：第 i 个运动员 → 第 i 个 Split
+      if (Object.keys(matchMap).length === 0) {
+        selectedSwimmerIds.forEach((sid, i) => {
+          if (i < splits.length) matchMap[sid] = splits[i].index;
+        });
+      }
+      document.getElementById('confirmCard').style.display = 'block';
+      renderConfirmStage();
+    }
+
+    function renderConfirmStage() {
+      const body = document.getElementById('confirmBody');
+      const swimCount = selectedSwimmerIds.length;
+      const splitCount = splits.length;
+      const matchedSplitIndexes = new Set(Object.values(matchMap));
+
+      body.innerHTML = selectedSwimmerIds.map((sid, i) => {
+        const name = swimmerNames[sid] || sid;
+        const matchedIdx = matchMap[sid];
+        const split = splits.find(s => s.index === matchedIdx);
+        const autoTime = split ? split.autoTime : '—';
+        const finalVal = finalTimes[sid] !== undefined ? formatMMSSmmm(finalTimes[sid]) : (autoTime !== '—' ? autoTime : '');
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${escapeHtml(name)}（${sid}）</td>
+            <td class="auto-time">${autoTime}</td>
+            <td><input type="text" data-swimmer="${sid}" value="${finalVal}" placeholder="例如 58.32"></td>
+            <td>
+              <select class="match-select" data-swimmer="${sid}">
+                <option value="">-- 未匹配 --</option>
+                ${splits.map(s => {
+                  const used = matchedSplitIndexes.has(s.index) && matchMap[sid] !== s.index;
+                  const selected = matchMap[sid] === s.index ? 'selected' : '';
+                  const occupiedLabel = used ? '（已被占用，选择将交换）' : '';
+                  return `<option value="${s.index}" ${selected}>#${s.index} ${s.autoTime}${occupiedLabel}</option>`;
+                }).join('')}
+              </select>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      // 匹配下拉变更：重新匹配（不重新计时、不改 elapsedMs）
+      body.querySelectorAll('.match-select').forEach(sel => {
+        sel.addEventListener('change', () => {
+          const sid = sel.dataset.swimmer;
+          const val = sel.value;
+          if (val) {
+            // 释放该运动员旧匹配（若被其他运动员占用则先清除占用）
+            const occupiedBy = Object.keys(matchMap).find(k => matchMap[k] === parseInt(val, 10));
+            if (occupiedBy && occupiedBy !== sid) delete matchMap[occupiedBy];
+            matchMap[sid] = parseInt(val, 10);
+          } else {
+            delete matchMap[sid];
+          }
+          renderConfirmStage(); // 重新渲染（更新自动时间、下拉禁用）
+          updateWarns();
+        });
+      });
+
+      // 最终成绩输入
+      body.querySelectorAll('input[type="text"]').forEach(inp => {
+        inp.addEventListener('change', () => {
+          const sid = inp.dataset.swimmer;
+          const val = inp.value.trim();
+          if (!val) {
+            delete finalTimes[sid];
+            return;
+          }
+          try {
+            const ms = parseTime(val);
+            finalTimes[sid] = ms;
+            inp.value = formatMMSSmmm(ms);
+            showAlert('alertBox', `${swimmerNames[sid] || sid} 最终成绩已更新: ${val}`, 'success');
+          } catch (err) {
+            showAlert('alertBox', `${swimmerNames[sid] || sid}: ${err.message}`, 'error');
+            inp.value = finalTimes[sid] !== undefined ? formatMMSSmmm(finalTimes[sid]) : '';
+          }
+        });
+      });
+
+      updateWarns();
+    }
+
+    function updateWarns() {
+      const swimCount = selectedSwimmerIds.length;
+      const splitCount = splits.length;
+      const matchedCount = selectedSwimmerIds.filter(sid => matchMap[sid] !== undefined).length;
+
+      const warnEl = document.getElementById('confirmWarn');
+      const msgs = [];
+
+      if (swimCount !== splitCount) {
+        if (swimCount > splitCount) {
+          msgs.push(`运动员 ${swimCount} 人，但计次只有 ${splitCount} 次，缺少 ${swimCount - splitCount} 次（可能漏记）。请补充计次或调整，系统不会自动编造成绩。`);
+        } else {
+          msgs.push(`运动员 ${swimCount} 人，但计次有 ${splitCount} 次，多出 ${splitCount - swimCount} 次（可能误触）。请删除多余计次。`);
+        }
+      }
+      if (matchedCount < swimCount) {
+        msgs.push(`已匹配 ${matchedCount} / ${swimCount} 人，未匹配的运动员不会被保存。`);
+      }
+
+      if (msgs.length > 0) {
+        warnEl.style.display = 'block';
+        warnEl.innerHTML = '⚠️ ' + msgs.join('<br>⚠️ ');
+      } else {
+        warnEl.style.display = 'none';
+      }
+    }
+
+    // ============ 结束选项 ============
+    // 生成最终结果（仅返回已匹配运动员，autoMs 保留自动计时不覆盖）
+    function buildFinalResults() {
+      const results = [];
+      selectedSwimmerIds.forEach(sid => {
+        const splitIdx = matchMap[sid];
+        if (splitIdx === undefined) return;
+        const split = splits.find(s => s.index === splitIdx);
+        if (!split) return;
+        const autoMs = split.elapsedMs;
+        const finalMs = finalTimes[sid] !== undefined ? finalTimes[sid] : autoMs;
+        results.push({
+          swimmerId: sid,
+          eventId: currentEventId,
+          meetId: currentMeetId,
+          timeMs: finalMs,
+          autoMs: autoMs,
+          splitIndex: splitIdx,
+          status: 'official'
+        });
+      });
+      return results;
+    }
+
+    // A. 保存为正式成绩：createResult(本地覆盖层) + 批量 GitHub Issue
+    document.getElementById('btnSaveOfficial').addEventListener('click', async () => {
+      if (syncInProgress) return;
+      const results = buildFinalResults();
+      if (results.length === 0) {
+        showAlert('alertBox', '请至少匹配一名运动员并确认成绩后保存', 'warning');
+        return;
+      }
+
+      syncInProgress = true;
+      const statusLine = document.getElementById('syncStatusLine');
+      statusLine.innerHTML = `<span style="color:var(--primary);">⏳ 正在准备批量提交 ${results.length} 条成绩…</span>`;
+
+      const payloads = [];
+      try {
+        for (const r of results) {
+          const created = await createResult({
+            swimmerId: r.swimmerId,
+            eventId: r.eventId,
+            meetId: r.meetId,
+            timeMs: r.timeMs,
+            status: 'official'
+          });
+          payloads.push({
+            action: 'create', entity: 'result',
+            data: { id: created.id, swimmerId: r.swimmerId, eventId: r.eventId, meetId: r.meetId, timeMs: r.timeMs, status: 'official' },
+            operator: 'admin'
+          });
+        }
+
+        submitBatchToGitHub(payloads, 'admin');
+
+        // 记录本次测试会话（本地副本，便于追溯）
+        saveTestSession({
+          id: 'test-' + Date.now(),
+          mode: 'official-submitted',
+          meetId: currentMeetId,
+          eventId: currentEventId,
+          createdAt: new Date().toISOString(),
+          splits: splits.map(s => ({ index: s.index, autoTime: s.autoTime, elapsedMs: s.elapsedMs })),
+          results: results.map(r => ({
+            swimmerId: r.swimmerId,
+            eventId: r.eventId,
+            meetId: r.meetId,
+            timeMs: r.timeMs,
+            autoTime: formatMMSSmmm(r.autoMs),
+            status: 'official'
+          }))
+        });
+
+        statusLine.innerHTML = `<span class="result-badge-saved">✅ 已提交 ${payloads.length} 条成绩（1 个 Issue）。GitHub Actions 将一次性同步（约 30-60 秒），之后刷新所有设备可见。</span>
+          <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:4px;">如同步失败，数据已保存在本地，可重新点击"保存为正式成绩"再次提交。</div>`;
+        showAlert('alertBox', '已打开 GitHub Issue 页面，提交该 Issue 后 Actions 将批量同步。', 'success');
+      } catch (err) {
+        statusLine.innerHTML = `<span class="result-badge-failed">❌ 保存失败: ${escapeHtml(err.message)}。本地数据已保留，可重试。</span>`;
+        showAlert('alertBox', '保存失败: ' + err.message, 'error');
+      } finally {
+        syncInProgress = false;
+      }
+    });
+
+    // B. 仅保存本次测试：localStorage，不写 results.json
+    document.getElementById('btnSaveLocal').addEventListener('click', () => {
+      const results = buildFinalResults();
+      if (results.length === 0) {
+        showAlert('alertBox', '请至少匹配一名运动员并确认成绩', 'warning');
+        return;
+      }
+      const session = {
+        id: 'test-' + Date.now(),
+        mode: 'test-only',
+        meetId: currentMeetId,
+        eventId: currentEventId,
+        createdAt: new Date().toISOString(),
+        splits: splits.map(s => ({ index: s.index, autoTime: s.autoTime, elapsedMs: s.elapsedMs })),
+        results: results.map(r => ({
+          swimmerId: r.swimmerId,
+          eventId: r.eventId,
+          meetId: r.meetId,
+          timeMs: r.timeMs,
+          autoTime: formatMMSSmmm(r.autoMs),
+          status: 'official'
+        }))
+      };
+      saveTestSession(session);
+      document.getElementById('syncStatusLine').innerHTML = `<span class="result-badge-saved">✅ 测试记录已保存到本地（localStorage），未写入正式成绩。</span>`;
+      showAlert('alertBox', `已保存测试记录（${results.length} 人），仅存于本地，未写入正式成绩。`, 'success');
+    });
+
+    // C. 放弃本次测试
+    document.getElementById('btnDiscard').addEventListener('click', () => {
+      if (!confirm('确定放弃本次测试？所有计次和匹配将被清除，不可恢复。')) return;
+      resetAll();
+      document.getElementById('configCard').style.display = 'block';
+      document.getElementById('timerCard').style.display = 'none';
+      document.getElementById('confirmCard').style.display = 'none';
+      showAlert('alertBox', '已放弃本次测试，状态已重置。', 'info');
+    });
+
+    // ============ localStorage 测试记录 ============
+    function saveTestSession(session) {
+      let list = [];
+      try {
+        list = JSON.parse(localStorage.getItem(LS_TESTS) || '[]');
+      } catch { list = []; }
+      list.unshift(session);
+      list = list.slice(0, 50);
+      localStorage.setItem(LS_TESTS, JSON.stringify(list));
+    }
+
+    // ============ 刷新保护 ============
+    window.addEventListener('beforeunload', (e) => {
+      if (status === 'running') {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
+
+    // ============ 事件绑定 ============
+    document.getElementById('formMeet').addEventListener('change', updateConfigState);
+    document.getElementById('formEvent').addEventListener('change', updateConfigState);
+    document.getElementById('btnStartConfig').addEventListener('click', startTimer);
+    document.getElementById('btnStart').addEventListener('click', startTimer);
+    document.getElementById('btnSplit').addEventListener('click', recordSplit);
+    document.getElementById('btnStop').addEventListener('click', stopTimer);
+    document.getElementById('btnUndo').addEventListener('click', undoLastSplit);
+    document.getElementById('btnRestart').addEventListener('click', restartTimer);
+
+    function restartTimer() {
+      if (status === 'running' || splits.length > 0) {
+        if (!confirm('重新开始将清空当前所有计次和匹配，确定继续？')) return;
+      }
+      resetAll();
+      document.getElementById('configCard').style.display = 'block';
+      document.getElementById('timerCard').style.display = 'none';
+      document.getElementById('confirmCard').style.display = 'none';
+      showAlert('alertBox', '已重置，可重新配置开始。', 'info');
+    }
+  </script>
+</body>
+</html>

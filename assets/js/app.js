@@ -76,6 +76,7 @@ function renderNavbar(role) {
     { href: `${prefix}pages/ranking.html`, label: '排名', always: true },
     { href: `${prefix}pages/athlete-grade.html`, label: '等级查询', always: true },
     { href: `${prefix}pages/admin-results-add.html`, label: '录入成绩', adminOnly: true },
+    { href: `${prefix}pages/admin-timing.html`, label: '测试计时', adminOnly: true },
     { href: `${prefix}pages/admin.html`, label: '管理', adminOnly: true },
   ];
 
